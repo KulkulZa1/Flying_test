@@ -14,11 +14,12 @@
 
 ## Conventions
 
-**Godot binary.** Godot is not installed yet (Task 1 installs it). Every command below assumes
-`$GODOT` points at the executable and the shell is in the project root:
+**Godot binary.** Godot 4.7.2 is installed (winget, `GodotEngine.GodotEngine`). Use the
+**`_console`** variant: the plain `.exe` detaches from the terminal on Windows, so `print()`
+output and exit codes would not come back. Every command below assumes:
 
 ```bash
-export GODOT="/c/Users/KulkulZa/Godot/Godot_v4.5-stable_win64.exe"
+export GODOT="/c/Users/KulkulZa/AppData/Local/Microsoft/WinGet/Packages/GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe/Godot_v4.7.2-stable_win64_console.exe"
 cd /d/toy_project/Flying
 ```
 
@@ -82,16 +83,15 @@ hand-authored `.tscn` geometry would be harder to review and impossible to test.
 - Create: `project.godot`, `scenes/main.tscn`, `scripts/game.gd`
 - Create: `tests/test_case.gd`, `tests/run_tests.gd`, `tests/test_smoke.gd`
 
-- [ ] **Step 1: Install Godot 4**
+- [x] **Step 1: Install Godot 4** — done, 4.7.2 via winget
 
-Download the Windows standard build (not .NET) from <https://godotengine.org/download/windows/>,
-unzip it, and point `$GODOT` at the executable. Verify:
+Verify the binary responds before doing anything else:
 
 ```bash
 "$GODOT" --version
 ```
 
-Expected: a version string such as `4.5.stable.official`.
+Expected: `4.7.2.stable.official.ed1daf0bf`.
 
 - [ ] **Step 2: Create the project skeleton**
 
