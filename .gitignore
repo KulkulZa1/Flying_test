@@ -1,0 +1,13 @@
+# Godot editor cache and imported resources
+.godot/
+
+# Export output and signing credentials
+/build/
+export_presets.cfg
+*.apk
+*.aab
+*.exe
+*.pck
+
+# Windows
+Thumbs.db
