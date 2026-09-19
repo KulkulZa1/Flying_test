@@ -43,3 +43,7 @@ const CAM_FOV_MAX := 85.0
 const START_ALTITUDE := 600.0
 const START_THROTTLE := 0.6
 const START_CLEARANCE := 250.0      # m of air guaranteed under a spawn
+
+# --- Input ---
+const FORCE_TOUCH_UI := false       # set true to exercise the touch layout on desktop
+const TOUCH_STICK_RADIUS := 110.0   # px of drag for full deflection

@@ -37,6 +37,10 @@ func _ready() -> void:
 	add_child(hud_layer)
 	hud = hud_layer.get_node("HUD")
 	hud.target = aircraft
+	if TouchControls.is_active():
+		var touch := TouchControls.new()
+		hud_layer.add_child(touch)
+		controller.touch = touch
 	_restart()
 
 func _build_environment() -> void:

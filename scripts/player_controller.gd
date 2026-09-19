@@ -1,6 +1,8 @@
 class_name PlayerController
 extends Node
 
+var touch: TouchControls = null
+
 ## Pointer offset is -1..1 from screen centre. Both rotations are negated:
 ## a rightward pointer must turn right, which is a negative rotation about up;
 ## and screen Y grows downward, so a low pointer must pitch the nose down,
@@ -15,6 +17,12 @@ static func aim_from_offset(basis: Basis, offset: Vector2) -> Vector3:
 
 func command(aircraft: Aircraft, _dt: float) -> InputCommand:
 	var cmd := InputCommand.new()
+	if touch != null:
+		cmd.aim_dir = aim_from_offset(aircraft.model.basis, touch.aim)
+		cmd.throttle_delta = touch.throttle_delta
+		cmd.roll = touch.aim.x * 0.5   # the stick banks as it steers
+		cmd.fire = touch.fire
+		return cmd
 	cmd.aim_dir = aim_from_offset(aircraft.model.basis, _pointer_offset(aircraft))
 	var throttle := 0.0
 	if Input.is_key_pressed(KEY_W):
