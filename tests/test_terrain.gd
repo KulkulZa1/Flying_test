@@ -56,3 +56,22 @@ func test_land_mesh_is_built() -> void:
 		"the land mesh has two triangles per grid cell")
 	instance.free()
 	terrain.free()
+
+func test_drawn_surface_matches_the_collision_field() -> void:
+	var terrain := Terrain.new()
+	var half := Config.WORLD_SIZE * 0.5
+	var step := Config.TERRAIN_RES
+	var worst := 0.0
+	for i in 60:
+		for j in 60:
+			var x := -half + (i + 0.5) * step
+			var z := -half + (j + 0.5) * step
+			# What the mesh draws at a cell centre is the average of its corners.
+			var drawn := (terrain.height_at(x - step * 0.5, z - step * 0.5)
+				+ terrain.height_at(x + step * 0.5, z - step * 0.5)
+				+ terrain.height_at(x + step * 0.5, z + step * 0.5)
+				+ terrain.height_at(x - step * 0.5, z + step * 0.5)) * 0.25
+			worst = maxf(worst, absf(drawn - terrain.height_at(x, z)))
+	check(worst < Config.GROUND_CLEARANCE * 3.0,
+		"the drawn surface must not diverge from the collision field by more than the clearance margin allows")
+	terrain.free()

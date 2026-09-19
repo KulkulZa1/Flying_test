@@ -17,7 +17,6 @@ static func spawn_point(ground: Terrain) -> Vector3:
 	return Vector3(x, y, z)
 
 func _ready() -> void:
-	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_environment()
 	terrain = Terrain.new()
 	add_child(terrain)
@@ -86,8 +85,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		get_tree().quit()
 
-## Spec section 14: the game pauses on focus loss. PROCESS_MODE_ALWAYS keeps this
-## node running while the tree is paused, so it can unpause itself on focus return.
+## Spec section 14: the game pauses on focus loss. Notifications are delivered
+## regardless of pause state, so Game receives focus events and can unpause
+## itself even while the tree is paused - no special process_mode is needed.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		get_tree().paused = true

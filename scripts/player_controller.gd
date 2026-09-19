@@ -3,17 +3,30 @@ extends Node
 
 var touch: TouchControls = null
 
-## Pointer offset is -1..1 from screen centre. Both rotations are negated:
-## a rightward pointer must turn right, which is a negative rotation about up;
-## and screen Y grows downward, so a low pointer must pitch the nose down,
-## which is a negative rotation about the aircraft's right axis.
+## Yaw about world up and pitch about the LEVEL right axis, never the body's own.
+## Rotating about basis.y/basis.x couples aim to bank: once the auto-bank servo
+## rolls the aircraft 75 degrees, "right" in the body frame is nearly "down" in
+## the world, so any held turn becomes a dive.
 static func aim_from_offset(basis: Basis, offset: Vector2) -> Vector3:
 	var cone := deg_to_rad(Config.AIM_CONE_DEG)
-	var clamped := offset.limit_length(1.0)
-	var aim := -basis.z
-	aim = aim.rotated(basis.y, -clamped.x * cone)
-	aim = aim.rotated(basis.x, -clamped.y * cone)
-	return aim
+	var clamped := apply_deadzone(offset)
+	var forward := -basis.z
+	var level_right := forward.cross(Vector3.UP)
+	if level_right.length_squared() < 1e-6:
+		level_right = basis.x  # nose is vertical: no level frame, fall back to the body
+	level_right = level_right.normalized()
+	var aim := forward.rotated(Vector3.UP, -clamped.x * cone)
+	return aim.rotated(level_right, -clamped.y * cone)
+
+## Spec section 9 specifies a screen-centre deadzone; it was never implemented.
+## Without it a single pixel of cursor offset commands 6.5 degrees per second, so
+## the aircraft can never be flown straight.
+static func apply_deadzone(raw: Vector2) -> Vector2:
+	var length := raw.length()
+	if length <= Config.AIM_DEADZONE:
+		return Vector2.ZERO
+	var ramped := (length - Config.AIM_DEADZONE) / (1.0 - Config.AIM_DEADZONE)
+	return raw.normalized() * minf(ramped, 1.0)
 
 func command(aircraft: Aircraft, _dt: float) -> InputCommand:
 	var cmd := InputCommand.new()
@@ -48,4 +61,4 @@ func _pointer_offset(aircraft: Aircraft) -> Vector2:
 	var size := viewport.get_visible_rect().size
 	if size.y < 1.0:
 		return Vector2.ZERO
-	return ((viewport.get_mouse_position() - size * 0.5) / (size.y * 0.5)).limit_length(1.0)
+	return (viewport.get_mouse_position() - size * 0.5) / (size.y * 0.5)

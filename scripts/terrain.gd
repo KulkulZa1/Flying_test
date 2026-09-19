@@ -7,6 +7,11 @@ func _init() -> void:
 	# Seeded here rather than in _ready() so height_at() works without a scene tree.
 	_noise.seed = Config.TERRAIN_SEED
 	_noise.frequency = Config.TERRAIN_FREQUENCY
+	# Default 5 octaves puts the finest detail at a 104 m wavelength against a
+	# 64 m mesh grid - below Nyquist, so the drawn surface and the collision
+	# field disagree by up to 29 m. Three octaves keeps the finest detail well
+	# above twice the grid spacing.
+	_noise.fractal_octaves = 3
 
 func height_at(x: float, z: float) -> float:
 	var n := (_noise.get_noise_2d(x, z) + 1.0) * 0.5          # 0..1
