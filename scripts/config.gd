@@ -60,3 +60,13 @@ const HIT_RADIUS := 6.0             # m, roughly the jet's span
 const MUZZLE_FORWARD := 5.0         # m ahead of the model origin
 const PLAYER_HP := 100.0
 const ENEMY_HP := 30.0
+
+# --- AI ---
+const ATTACK_CONE_DEG := 12.0
+const ATTACK_RANGE := 600.0         # m
+const MIN_SEPARATION := 120.0       # m, below which the AI breaks off
+const BREAK_TIME := 2.5             # s
+const REPOSITION_ALTITUDE := 450.0  # m, floor the AI climbs back to
+const AI_THROTTLE := 0.85
+const AIM_JITTER_START_DEG := 8.0
+const AIM_JITTER_END_DEG := 2.0

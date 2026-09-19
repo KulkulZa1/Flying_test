@@ -16,6 +16,7 @@ const SUITES := [
 	"res://tests/test_weapon.gd",
 	"res://tests/test_bullets.gd",
 	"res://tests/test_damage.gd",
+	"res://tests/test_ai.gd",
 ]
 
 var _checks := 0
