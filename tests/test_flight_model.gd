@@ -152,10 +152,13 @@ func test_bank_is_clamped() -> void:
 	fm.speed = Config.BEST_TURN_SPEED
 	var cmd := InputCommand.new()
 	cmd.aim_dir = Vector3.RIGHT
+	var peak := 0.0
 	for i in 600:
 		fm.apply_steering(cmd, 1.0 / 60.0)
 		fm.apply_bank(cmd, 1.0 / 60.0)
-	check(absf(fm.bank_angle()) <= Config.MAX_BANK + 0.05, "bank never exceeds MAX_BANK")
+		peak = maxf(peak, absf(fm.bank_angle()))
+	check(peak > 0.5, "the turn must actually bank substantially, or this test proves nothing")
+	check(peak <= Config.MAX_BANK + 0.05, "bank never exceeds MAX_BANK")
 
 func test_manual_roll_rolls() -> void:
 	var fm := FlightModel.new()
