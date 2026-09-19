@@ -18,3 +18,6 @@ func apply_throttle(cmd: InputCommand, dt: float) -> void:
 func apply_engine_lag(dt: float) -> void:
 	var target := lerpf(Config.MIN_SPEED, Config.MAX_SPEED, throttle)
 	speed += (target - speed) * (1.0 - exp(-Config.ENGINE_RESPONSE * dt))
+
+func apply_gravity(dt: float) -> void:
+	speed = maxf(speed - Config.GRAVITY * forward().y * dt, 0.0)

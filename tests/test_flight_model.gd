@@ -42,3 +42,33 @@ func test_engine_lag_is_framerate_independent() -> void:
 		slow.apply_engine_lag(1.0 / 45.0)
 	check_approx(fast.speed, slow.speed, 0.01,
 		"one second of spool-up must not depend on timestep")
+
+func test_climbing_bleeds_speed() -> void:
+	var fm := FlightModel.new()
+	fm.speed = 100.0
+	fm.basis = Basis(Vector3.RIGHT, deg_to_rad(30.0))  # nose up 30 degrees
+	fm.apply_gravity(1.0)
+	check_approx(fm.speed, 100.0 - Config.GRAVITY * 0.5, 0.01,
+		"a 30 degree climb bleeds GRAVITY * sin(30) per second")
+
+func test_diving_gains_speed() -> void:
+	var fm := FlightModel.new()
+	fm.speed = 100.0
+	fm.basis = Basis(Vector3.RIGHT, deg_to_rad(-30.0))  # nose down 30 degrees
+	fm.apply_gravity(1.0)
+	check_approx(fm.speed, 100.0 + Config.GRAVITY * 0.5, 0.01,
+		"a 30 degree dive gains GRAVITY * sin(30) per second")
+
+func test_level_flight_does_not_change_speed() -> void:
+	var fm := FlightModel.new()
+	fm.speed = 100.0
+	fm.apply_gravity(1.0)
+	check_approx(fm.speed, 100.0, 1e-6, "level flight is energy neutral")
+
+func test_speed_never_goes_negative() -> void:
+	var fm := FlightModel.new()
+	fm.speed = 1.0
+	fm.basis = Basis(Vector3.RIGHT, deg_to_rad(90.0))  # straight up
+	for i in 100:
+		fm.apply_gravity(0.1)
+	check(fm.speed >= 0.0, "speed must never go negative")
