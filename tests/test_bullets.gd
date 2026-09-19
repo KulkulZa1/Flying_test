@@ -30,7 +30,7 @@ func test_a_round_hits_a_target_in_its_path() -> void:
 	bullets.spawn(Vector3.ZERO, Vector3.FORWARD, null)
 	var hits := bullets.step(0.5, [target])
 	check(hits.size() == 1, "a round passing through a target reports one hit")
-	check(hits[0] == target, "and reports which target it hit")
+	check(hits[0]["target"] == target, "and reports which target it hit")
 	check(bullets.count() == 0, "and is consumed")
 	bullets.free()
 
@@ -56,6 +56,16 @@ func test_a_degenerate_direction_spawns_nothing() -> void:
 	bullets.spawn(Vector3.ZERO, Vector3.ZERO, null)
 	bullets.spawn(Vector3.ZERO, Vector3(NAN, 0.0, 0.0), null)
 	check(bullets.count() == 0, "a zero or non-finite direction produces no round")
+	bullets.free()
+
+func test_a_hit_reports_who_fired_it() -> void:
+	var bullets := Bullets.new()
+	var shooter := Dummy.new(Vector3(0.0, 0.0, 500.0))
+	var target := Dummy.new(Vector3(0.0, 0.0, -100.0))
+	bullets.spawn(Vector3.ZERO, Vector3.FORWARD, shooter)
+	var hits := bullets.step(0.5, [target])
+	check(hits.size() == 1 and hits[0]["shooter"] == shooter,
+		"a hit names the craft that fired, so a kill can be told from a crossfire")
 	bullets.free()
 
 func test_rounds_do_not_accumulate_without_bound() -> void:

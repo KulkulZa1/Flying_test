@@ -28,7 +28,7 @@ func _fight(prey_controller, seconds: float) -> Dictionary:
 		if hunter.fired:
 			bullets.spawn(hunter.muzzle(), hunter.model.forward(), hunter)
 		for hit in bullets.step(dt, [prey, hunter]):
-			hit.take_damage(Config.BULLET_DAMAGE)
+			hit["target"].take_damage(Config.BULLET_DAMAGE)
 		if not prey.is_alive():
 			break
 	var result := {

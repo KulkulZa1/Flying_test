@@ -24,6 +24,8 @@ func spawn(at: Vector3, direction: Vector3, shooter) -> void:
 ## swept from its old position to its new one, so a round that crosses a target
 ## entirely within one tick still registers. Iterates backwards so removals do
 ## not disturb indices still to be visited.
+## Each hit reports both the target and the craft that fired, so the caller can
+## tell a kill from a collision between two enemies.
 func step(dt: float, targets: Array) -> Array:
 	var hits := []
 	var index := _positions.size() - 1
@@ -40,7 +42,7 @@ func step(dt: float, targets: Array) -> Array:
 				struck = target
 				break
 		if struck != null:
-			hits.append(struck)
+			hits.append({"target": struck, "shooter": _owners[index]})
 		if struck != null or _ages[index] >= Config.BULLET_LIFETIME:
 			_remove(index)
 		index -= 1

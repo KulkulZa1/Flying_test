@@ -11,6 +11,7 @@ var scoring: Scoring
 var enemies: Array[Aircraft] = []
 var wave := 0
 var _wave_gap := 0.0
+var _credit: Aircraft = null
 
 ## Out over the sea with the nose pointed inland, clearing whatever ground is
 ## actually underneath. A fixed altitude can spawn inside a mountain: the island
@@ -106,7 +107,11 @@ func _physics_process(delta: float) -> void:
 		if craft.fired:
 			bullets.spawn(craft.muzzle(), craft.model.forward(), craft)
 	for hit in bullets.step(delta, combatants):
-		hit.take_damage(Config.BULLET_DAMAGE)
+		# died is emitted synchronously inside take_damage, so _on_enemy_died
+		# reads the right shooter here and nowhere else.
+		_credit = hit["shooter"]
+		hit["target"].take_damage(Config.BULLET_DAMAGE)
+	_credit = null
 	_advance_waves(delta)
 
 func _advance_waves(delta: float) -> void:
@@ -135,20 +140,41 @@ func _spawn_wave() -> void:
 		pilot.jitter_degrees = WaveDirector.jitter_for(wave)
 		enemy.controller = pilot
 		enemy.died.connect(_on_enemy_died.bind(enemy))
-		enemy.crashed.connect(enemy.take_damage.bind(enemy.max_hp))
+		enemy.crashed.connect(_on_enemy_crashed.bind(enemy))
 		add_child(enemy)
 		enemy.reset(WaveDirector.spawn_point(aircraft.model.position, i, count))
 		enemies.append(enemy)
 
 func _on_enemy_died(enemy: Aircraft) -> void:
-	scoring.register_kill()
+	if _credit == aircraft:
+		scoring.register_kill()
 	Debris.scatter(self, enemy.model.position, enemy.model.forward() * enemy.model.speed * 0.3)
+	enemies.erase(enemy)
 	enemy.queue_free()
 
+## Flying into a mountain removes an enemy but scores nothing. Routing it
+## through take_damage would credit the player for a kill they did not make,
+## and enemies meet terrain often enough for that to be farmable.
+func _on_enemy_crashed(enemy: Aircraft) -> void:
+	if not is_instance_valid(enemy) or not enemy.is_alive():
+		return
+	enemy.hp = 0.0
+	Debris.scatter(self, enemy.model.position, Vector3.ZERO)
+	enemies.erase(enemy)
+	enemy.queue_free()
+
+## Clears the wave as well as the score. Leaving survivors alive meant a
+## respawned pilot faced the wave that had just killed them, with the counter
+## stuck at zero until they cleared it.
 func _on_player_died() -> void:
 	scoring.save_high_score()
 	scoring.reset_run()
 	wave = 0
+	for enemy in enemies:
+		if is_instance_valid(enemy):
+			enemy.queue_free()
+	enemies.clear()
+	_wave_gap = Config.WAVE_GAP
 	_restart()
 
 func _unhandled_input(event: InputEvent) -> void:
