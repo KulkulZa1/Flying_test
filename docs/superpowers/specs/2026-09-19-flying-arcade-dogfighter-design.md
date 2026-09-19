@@ -215,6 +215,37 @@ Stall recovery at full throttle is likewise dominated by engine spool-up, not ae
 engine alone crosses `STALL_SPEED` in roughly 17 frames, so `SAG_RATE` and `STALL_SPEED` barely
 influence how a power-on stall resolves.
 
+### Constants that currently do less than their names suggest
+
+Found by mutation testing the finished model. None is a defect; all are tuning decisions best
+made with the game running, and all are recorded here so nobody later wonders why turning a knob
+changes nothing.
+
+**`AUTO_BANK_GAIN` is inert.** The bank target saturates at `MAX_BANK` for any yaw rate above
+0.52 rad/s, and `turn_rate()` never drops below 0.8 rad/s anywhere in the flyable band. So every
+sustained turn banks to exactly `MAX_BANK` — bank is effectively binary, not "proportional to yaw
+rate". Multiplying the gain by ten changes no test and no behaviour. Setting it to
+`MAX_BANK / MAX_TURN_RATE` ≈ 0.72 would map the full turn-rate range onto the full bank range and
+make it live.
+
+**The turn law is effectively bang-bang.** At 90 m/s, *any* aim offset beyond 1.72° commands the
+full turn rate. With `AIM_CONE_DEG` at 35, that means 95% of the cone is saturated: a 2° mouse
+nudge and a 35° shove turn at the same rate, differing only in where the nose ends up. That is
+coherent for aim-to-steer — the reticle is a position target, not a rate command — but it is not
+the proportional control the controls section reads as. Note the coupling: because yaw rate is
+then just `turn_rate(speed)`, a live `AUTO_BANK_GAIN` would make bank read *speed* rather than
+stick deflection. Changing either alone will disappoint.
+
+**The rate cap binds the automatic servo too.** `MANUAL_ROLL_RATE` caps every bank change, not
+just manual ones, so it sets the airframe's roll-in rate and `BANK_RESPONSE` governs only the
+tail of the motion. Defensible, but the name points the wrong way.
+
+**Both turn-authority floors are nearly unreachable.** `MIN_TURN_SCALE` engages only below
+22.5 m/s while level flight floors at 40, so the "mushy when slow" feel bottoms out at scale 0.44
+and the floor itself is reachable only transiently in a zoom climb. `HIGH_SPEED_TURN_FLOOR`
+engages at 150 m/s, so the top of the throttle band and the entire dive range share one turn
+authority.
+
 ---
 
 ## 7. World

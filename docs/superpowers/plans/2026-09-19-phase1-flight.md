@@ -1943,12 +1943,20 @@ Expected: `failures: 0`, `exit=0`, covering config, flight model, terrain and bo
 - [ ] With `FORCE_TOUCH_UI = true` and mouse touch emulation on, the touch layout flies the plane
 - [ ] Holds 60 fps (check with **Debug > Visible Profiler**, or Godot's `--print-fps`)
 
-**One feel decision to make with the stick in hand, not before.** Holding full manual roll with
-no turn settles at 0.83 rad (47.7°) and stops, because the auto-bank servo cancels it — the plane
-cannot barrel-roll or fly inverted. That is literally what the spec asks for, and may be right
-for an aim-to-steer game where roll is mostly cosmetic. If it feels wrong while flying,
-suppressing the servo whenever `cmd.roll` is non-zero gives continuous rolling and is a two-line
-change to `apply_bank`.
+**Feel decisions to make with the stick in hand, not before.** Three came out of mutation-testing
+the finished flight model, and none can be judged from a test harness:
+
+1. Holding full manual roll with no turn settles at 0.83 rad (47.7°) and stops, because the
+   auto-bank servo cancels it — the plane cannot barrel-roll or fly inverted. That is literally
+   what the spec asks for, and may be right where roll is mostly cosmetic. Suppressing the servo
+   whenever `cmd.roll` is non-zero gives continuous rolling: a two-line change to `apply_bank`.
+2. `AUTO_BANK_GAIN` is inert — every sustained turn banks to exactly `MAX_BANK`.
+3. The turn law is effectively bang-bang: any aim offset beyond 1.72° commands full turn rate, so
+   95% of the 35° aim cone is saturated.
+
+Points 2 and 3 are coupled, and changing either alone will disappoint. The spec section
+"Constants that currently do less than their names suggest" has the measurements and the
+interaction.
 
 - [ ] **Step 3: Confirm no process is left behind**
 
