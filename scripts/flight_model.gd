@@ -80,3 +80,12 @@ func apply_stall_sag(dt: float) -> void:
 	level_right = level_right.normalized()
 	# Negative rotation about the level-right axis pitches the nose down.
 	basis = (Basis(level_right, -Config.SAG_RATE * severity * dt) * basis).orthonormalized()
+
+func step(cmd: InputCommand, dt: float) -> void:
+	apply_throttle(cmd, dt)
+	apply_engine_lag(dt)
+	apply_gravity(dt)
+	apply_steering(cmd, dt)
+	apply_bank(cmd, dt)
+	apply_stall_sag(dt)
+	position += forward() * speed * dt

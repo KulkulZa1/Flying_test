@@ -178,3 +178,70 @@ func test_no_sag_above_stall_speed() -> void:
 	fm.speed = Config.STALL_SPEED + 1.0
 	fm.apply_stall_sag(0.5)
 	check_approx(fm.forward().y, 0.0, 1e-9, "above stall speed the nose is untouched")
+
+func _fly(dt: float, seconds: float) -> FlightModel:
+	var fm := FlightModel.new()
+	fm.speed = 100.0
+	fm.throttle = 0.6
+	var cmd := InputCommand.new()
+	cmd.aim_dir = Vector3(0.3, 0.1, -1.0).normalized()
+	for i in int(round(seconds / dt)):
+		fm.step(cmd, dt)
+	return fm
+
+func test_step_moves_the_plane_forward() -> void:
+	var fm := FlightModel.new()
+	fm.speed = 100.0
+	var cmd := InputCommand.new()
+	cmd.aim_dir = fm.forward()
+	fm.step(cmd, 0.1)
+	check(fm.position.z < -9.0, "the plane advances along its nose (-Z)")
+
+func test_trajectory_is_framerate_independent() -> void:
+	var fast := _fly(1.0 / 120.0, 3.0)
+	var slow := _fly(1.0 / 45.0, 3.0)
+	check(fast.forward().angle_to(slow.forward()) < 0.01,
+		"final heading must not depend on timestep")
+	var path := fast.position.length()
+	check(fast.position.distance_to(slow.position) <= 0.02 * path,
+		"final position must agree within 2 percent of distance travelled")
+
+func test_stall_recovery_terminates() -> void:
+	var fm := FlightModel.new()
+	fm.speed = 5.0
+	fm.throttle = 1.0
+	var cmd := InputCommand.new()
+	var recovered := false
+	for i in 1200:  # 20 seconds
+		cmd.aim_dir = fm.forward()
+		fm.step(cmd, 1.0 / 60.0)
+		if fm.speed > Config.STALL_SPEED:
+			recovered = true
+			break
+	check(recovered, "a deep stall recovers within 20 seconds")
+	check(fm.basis.is_finite(), "the basis stays finite through a stall")
+
+func test_vertical_stall_recovers() -> void:
+	var fm := FlightModel.new()
+	fm.speed = 5.0
+	fm.throttle = 1.0
+	fm.basis = Basis(Vector3.RIGHT, deg_to_rad(89.0))  # near-vertical zoom climb
+	var cmd := InputCommand.new()
+	var recovered := false
+	for i in 1800:  # 30 seconds
+		cmd.aim_dir = fm.forward()
+		fm.step(cmd, 1.0 / 60.0)
+		if fm.speed > Config.STALL_SPEED:
+			recovered = true
+			break
+	check(recovered, "a near-vertical zoom climb to near-zero speed recovers")
+
+func test_state_stays_finite_under_long_simulation() -> void:
+	var fm := FlightModel.new()
+	var cmd := InputCommand.new()
+	for i in 3600:  # one minute of hard turning
+		cmd.aim_dir = Vector3(sin(i * 0.01), 0.2, -1.0)
+		fm.step(cmd, 1.0 / 60.0)
+	check(fm.position.is_finite(), "position stays finite")
+	check(fm.basis.is_finite(), "basis stays finite")
+	check(fm.speed >= 0.0 and fm.speed <= Config.MAX_SPEED + 1.0, "speed stays in band")
