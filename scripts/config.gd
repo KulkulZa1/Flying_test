@@ -84,3 +84,8 @@ const COMBO_WINDOW := 4.0           # s within which kills chain
 const COMBO_STEP := 0.5
 const COMBO_CAP := 4.0
 const HIGH_SCORE_PATH := "user://highscore.cfg"
+
+# --- Debris ---
+const DEBRIS_COUNT := 5
+const DEBRIS_LIFETIME := 6.0        # s
+const DEBRIS_SPEED := 14.0          # m/s of initial scatter
