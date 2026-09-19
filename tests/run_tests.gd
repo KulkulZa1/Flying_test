@@ -25,6 +25,8 @@ func _initialize() -> void:
 ## in here means such an error returns control to _initialize()'s loop instead
 ## of aborting it, so quit() is always reached and the process can never hang.
 ## _suites_completed is incremented only on a clean finish.
+## A test that asserts once and then errors still reports green here; failures: 0
+## is not proof every assertion ran. tests/run.sh catches that via SCRIPT ERROR.
 func _run_suite(path: String) -> void:
 	var script: GDScript = load(path)
 	var suite: TestCase = script.new()
