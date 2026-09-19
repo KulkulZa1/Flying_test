@@ -1935,21 +1935,41 @@ Expected: `Boundary` unknown, `exit=1`.
 class_name Boundary
 extends RefCounted
 
-## Bends aim back toward the world centre once the plane is past the soft boundary.
+## Rotates aim toward the world centre once past the soft boundary, in proportion
+## to how far out you are. Deliberately a rotation and not a lerp: lerping between
+## opposed directions collapses to the zero vector at the midpoint, which turns a
+## gradual bend into a 180 degree snap.
 static func constrain(aim: Vector3, position: Vector3) -> Vector3:
-	var flat := Vector2(position.x, position.z)
-	var distance := flat.length()
+	var distance := Vector2(position.x, position.z).length()
 	if distance <= Config.BOUNDARY_SOFT_START:
 		return aim
 	var span := maxf(Config.WORLD_SIZE * 0.5 - Config.BOUNDARY_SOFT_START, 1.0)
-	var strength := clampf((distance - Config.BOUNDARY_SOFT_START) / span, 0.0, 1.0)
-	strength = clampf(strength * Config.BOUNDARY_STRENGTH, 0.0, 1.0)
-	var inward := Vector3(-position.x, 0.0, -position.z).normalized()
-	var blended := aim.lerp(inward, strength)
-	if not blended.is_finite() or blended.length_squared() < 1e-6:
+	var strength := clampf(
+		(distance - Config.BOUNDARY_SOFT_START) / span * Config.BOUNDARY_STRENGTH, 0.0, 1.0)
+	var inward := Vector3(-position.x, 0.0, -position.z)
+	if inward.length_squared() < 1e-6:
+		return aim
+	inward = inward.normalized()
+	var unit := aim.normalized()
+	if not unit.is_finite():
 		return inward
-	return blended.normalized()
+	var angle := unit.angle_to(inward)
+	if angle < 1e-5:
+		return aim
+	var axis := unit.cross(inward)
+	if axis.length_squared() < 1e-12:
+		axis = Vector3.UP  # aimed exactly outward: no unique axis, so turn about world up
+	else:
+		axis = axis.normalized()
+	return unit.rotated(axis, angle * strength)
 ```
+
+**Why not a lerp.** The first draft blended with `aim.lerp(inward, strength)`. Flying straight
+out makes `aim` and `inward` exactly antiparallel, so at half strength the lerp cancels to the
+zero vector, trips the degenerate fallback and returns `inward` outright. Measured, that turned
+the "soft" boundary into a cliff: 0° of correction at x=3650 and a full 180° reversal at x=3700,
+100 m into a 400 m span. Rotating toward `inward` by `angle * strength` gives the gradual bend
+the name promises, and `test_the_turn_back_is_gradual_not_a_snap` pins it.
 
 - [ ] **Step 4: Apply it in `scripts/player_controller.gd`**
 
