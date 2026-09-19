@@ -34,3 +34,24 @@ static func scatter(parent: Node3D, at: Vector3, inherited: Vector3) -> void:
 		timer.timeout.connect(chunk.queue_free)
 		chunk.add_child(timer)
 		timer.start()
+
+## A brief flash where a round lands. Without it there is no feedback at all
+## between pulling the trigger and an enemy eventually exploding.
+static func spark(parent: Node3D, at: Vector3) -> void:
+	var mesh := SphereMesh.new()
+	mesh.radius = 1.4
+	mesh.height = 2.8
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.albedo_color = Color(1.0, 0.92, 0.55)
+	mesh.material = material
+	var flash := MeshInstance3D.new()
+	flash.mesh = mesh
+	flash.position = at
+	parent.add_child(flash)
+	var timer := Timer.new()
+	timer.one_shot = true
+	timer.wait_time = 0.09
+	timer.timeout.connect(flash.queue_free)
+	flash.add_child(timer)
+	timer.start()

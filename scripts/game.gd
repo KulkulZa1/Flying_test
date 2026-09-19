@@ -110,6 +110,7 @@ func _physics_process(delta: float) -> void:
 		# died is emitted synchronously inside take_damage, so _on_enemy_died
 		# reads the right shooter here and nowhere else.
 		_credit = hit["shooter"]
+		Debris.spark(self, hit["at"])
 		hit["target"].take_damage(Config.BULLET_DAMAGE)
 	_credit = null
 	_advance_waves(delta)
@@ -141,6 +142,7 @@ func _spawn_wave() -> void:
 		enemy.controller = pilot
 		enemy.died.connect(_on_enemy_died.bind(enemy))
 		enemy.crashed.connect(_on_enemy_crashed.bind(enemy))
+		enemy.get_node("Visual").tint = Color(1.45, 0.62, 0.55)
 		add_child(enemy)
 		enemy.reset(WaveDirector.spawn_point(aircraft.model.position, i, count))
 		enemies.append(enemy)

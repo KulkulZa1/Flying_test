@@ -76,3 +76,33 @@ func test_rounds_do_not_accumulate_without_bound() -> void:
 	check(bullets.count() <= int(Config.BULLET_LIFETIME * 60.0) + 2,
 		"live rounds stay bounded, so a long fight cannot leak")
 	bullets.free()
+
+func test_a_streak_lies_along_its_travel() -> void:
+	var basis := Bullets.streak_basis(Vector3(0.0, 0.0, -1.0))
+	check((-basis.z).angle_to(Vector3(0.0, 0.0, -1.0)) < 1e-5,
+		"a streak's long axis follows the round's travel")
+
+func test_a_vertical_streak_is_still_valid() -> void:
+	var basis := Bullets.streak_basis(Vector3.UP)
+	check(basis.is_finite() and absf(basis.determinant() - 1.0) < 1e-4,
+		"a round travelling straight up still yields a usable orientation")
+
+func test_a_degenerate_streak_falls_back_to_identity() -> void:
+	check(Bullets.streak_basis(Vector3.ZERO).is_equal_approx(Basis.IDENTITY),
+		"a zero direction yields identity rather than a NaN basis")
+
+func test_a_hit_reports_where_it_landed() -> void:
+	var bullets := Bullets.new()
+	var target := Dummy.new(Vector3(0.0, 0.0, -100.0))
+	bullets.spawn(Vector3.ZERO, Vector3.FORWARD, null)
+	var hits := bullets.step(0.5, [target])
+	check(hits.size() == 1 and hits[0]["at"].distance_to(target.combat_position()) < 250.0,
+		"a hit reports roughly where it landed, so a spark can be drawn there")
+	bullets.free()
+
+func test_stepping_outside_a_tree_does_not_touch_visuals() -> void:
+	var bullets := Bullets.new()
+	bullets.spawn(Vector3.ZERO, Vector3.FORWARD, null)
+	bullets.step(0.1, [])
+	check(bullets.count() == 1, "stepping without a scene tree still advances rounds")
+	bullets.free()
