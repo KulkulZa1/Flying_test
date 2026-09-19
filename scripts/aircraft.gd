@@ -10,9 +10,19 @@ var controller: Object = null
 var terrain: Terrain = null
 
 func _physics_process(delta: float) -> void:
+	tick(delta)
+
+## Extracted from _physics_process so a full control-to-model cycle can be tested
+## without a scene tree. Phase 1 shipped a game that was unflyable while every
+## pure-function test passed; this is the shape of test that caught it.
+func tick(delta: float) -> void:
 	if controller == null:
 		return
-	model.step(controller.command(self, delta), delta)
+	var cmd: InputCommand = controller.command(self, delta)
+	# Applied here rather than in a controller so every pilot inherits it. An AI
+	# that forgot to call it would simply fly off the map.
+	cmd.aim_dir = Boundary.constrain(cmd.aim_dir, model.position)
+	model.step(cmd, delta)
 	sync_transform()
 	if is_below_ground():
 		crashed.emit()

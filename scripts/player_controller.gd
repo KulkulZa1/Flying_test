@@ -30,14 +30,12 @@ static func apply_deadzone(raw: Vector2) -> Vector2:
 func command(aircraft: Aircraft, _dt: float) -> InputCommand:
 	var cmd := InputCommand.new()
 	if touch != null:
-		cmd.aim_dir = Boundary.constrain(
-			aim_from_offset(aircraft.model.basis, touch.aim), aircraft.model.position)
+		cmd.aim_dir = aim_from_offset(aircraft.model.basis, touch.aim)
 		cmd.throttle_delta = touch.throttle_delta
 		cmd.roll = touch.aim.x * 0.5   # the stick banks as it steers
 		cmd.fire = touch.fire
 		return cmd
-	cmd.aim_dir = Boundary.constrain(
-		aim_from_offset(aircraft.model.basis, _pointer_offset(aircraft)), aircraft.model.position)
+	cmd.aim_dir = aim_from_offset(aircraft.model.basis, _pointer_offset(aircraft))
 	var throttle := 0.0
 	if Input.is_key_pressed(KEY_W):
 		throttle += 1.0

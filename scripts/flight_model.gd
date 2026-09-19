@@ -46,7 +46,13 @@ func apply_steering(cmd: InputCommand, dt: float) -> void:
 		return
 	var axis := fwd.cross(aim)
 	if axis.length_squared() < 1e-12:
-		return  # exactly reversed: no unique rotation axis
+		# Exactly reversed: there is no unique rotation axis, but any perpendicular
+		# one turns us around. Returning here instead let an aircraft fly straight
+		# out of the world forever, because the world boundary hands back an aim
+		# that is exactly antiparallel to a radial heading.
+		axis = fwd.cross(Vector3.UP)
+		if axis.length_squared() < 1e-12:
+			axis = Vector3.RIGHT  # nose is vertical too; any horizontal axis will do
 	axis = axis.normalized()
 	var applied := minf(angle, turn_rate() * dt)
 	basis = (Basis(axis, applied) * basis).orthonormalized()

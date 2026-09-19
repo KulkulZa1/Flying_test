@@ -370,3 +370,14 @@ func test_exactly_vertical_stall_tips_over() -> void:
 	check(lowest < 0.99, "an exactly vertical nose must tip over rather than hang forever")
 	check(absf(fm.basis.determinant() - 1.0) < 1e-4,
 		"the vertical fallback must not corrupt the basis")
+
+func test_an_exactly_reversed_aim_still_turns_the_aircraft() -> void:
+	var fm := FlightModel.new()
+	fm.speed = Config.BEST_TURN_SPEED
+	var before := fm.forward()
+	var cmd := InputCommand.new()
+	cmd.aim_dir = Vector3(0.0, 0.0, 1.0)  # exactly opposite the starting nose
+	for i in 60:
+		fm.apply_steering(cmd, 1.0 / 60.0)
+	check(before.angle_to(fm.forward()) > 1.0,
+		"an aim pointing exactly backwards must turn the aircraft around, not be ignored")
