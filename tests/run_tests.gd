@@ -10,6 +10,7 @@ const SUITES := [
 	"res://tests/test_game.gd",
 	"res://tests/test_hud.gd",
 	"res://tests/test_touch.gd",
+	"res://tests/test_boundary.gd",
 ]
 
 var _checks := 0
