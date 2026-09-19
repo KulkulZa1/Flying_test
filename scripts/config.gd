@@ -42,3 +42,4 @@ const CAM_FOV_MAX := 85.0
 # --- Start state ---
 const START_ALTITUDE := 600.0
 const START_THROTTLE := 0.6
+const START_CLEARANCE := 250.0      # m of air guaranteed under a spawn
