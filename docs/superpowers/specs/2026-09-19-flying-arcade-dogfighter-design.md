@@ -278,8 +278,31 @@ aim reticle stays centred.
 Both platforms produce the identical `InputCommand`; only the source differs.
 
 **PC.** Mouse position inside a screen-centre deadzone maps to an aim offset from the nose,
-clamped to `AIM_CONE_DEG`. `W`/`S` throttle, `A`/`D` roll, left mouse or `Space` fire, `Esc`
-pause.
+clamped to `AIM_CONE_DEG`. `W`/`S` throttle, `A`/`D` roll, left mouse or `Space` fire. `Esc`
+quits — a pause menu is out of scope for Phase 1.
+
+### Which axes the aim rotates about, and why it matters
+
+This is the single most consequential detail in the controls, and getting it wrong made the game
+unflyable in a way no unit test caught.
+
+**Yaw is about world up.** Rotating about the aircraft's own `basis.y` couples aim to bank: the
+auto-bank servo rolls the aircraft up to 75° in any sustained turn, at which point "right" in the
+body frame is nearly "down" in the world. Measured on the body-frame version, *any* held rightward
+cursor offset — 8 px or 324 px, bit-identically — reached −69° of pitch and hit the ground four
+seconds after spawn. With yaw about world up, the same input holds exactly 600 m for a full
+minute at 74.5° of bank.
+
+**Pitch is about the body's right axis.** The obvious counterpart, pitching about
+`forward.cross(UP)`, flips sign the instant the nose crosses vertical, reversing the pitch command
+at the top of a loop and pinning the nose there. `basis.x` is continuous through a full rotation.
+
+The trade-off is taken deliberately: pitching about a body axis means an inverted aircraft pitches
+toward the ground when the pointer is pushed up. That is conventional for flight games, and it is
+the price of being able to loop at all.
+
+**The deadzone is load-bearing, not polish.** Without it a single pixel of cursor offset commands
+6.5°/s and the aircraft cannot be flown straight.
 
 **Touch.** A floating stick spawns wherever the left half of the screen is first touched and
 tracks the drag to set aim. The right side carries a vertical throttle slider and a fire button.
@@ -411,7 +434,51 @@ Android export is a packaging exercise rather than a redesign.
 
 ---
 
-## 18. Working agreements
+## 18. Known limitations at the end of Phase 1
+
+Found by a final review that measured the assembled game rather than reading it. None blocks
+flying; all are recorded so they are not rediscovered.
+
+**The test suite's shape is its real weakness.** Every check is on a pure function or a static
+helper. There is no coverage of `PlayerController.command`, `Aircraft._physics_process`,
+`ChaseCamera._process`, `HUD._draw`, `TouchControls._input`, or any method of `Game` except the
+static `spawn_point`. Every blocker the final review found lived in exactly that gap — the model
+was provably correct while the game was unflyable. Phase 2 should add at least one test that
+drives the real controller through the real model for a sustained period, which is what finally
+caught it.
+
+**Field of view is vertical, not horizontal.** Godot's `Camera3D.fov` with the default
+`KEEP_HEIGHT` is the vertical angle, so `CAM_FOV_MIN`/`MAX` of 70–85 are **102°–117° horizontal**
+at 16:9. That is very wide and will stretch at the edges. Left as-is because it is a feel
+judgement that needs eyes on it, not a defect.
+
+**The HUD horizon is not a true overlay.** `horizon_offset` is linear in pitch at 0.446 screen
+heights per radian, while the real horizon moves at 0.714 (at FOV 70) to 0.546 (at FOV 85). The
+drawn line therefore tracks at 62–82% of the real horizon's rate, and the ratio shifts with speed.
+It reads correctly as an attitude indicator; it will not sit on the actual horizon.
+
+**Touch banks harder than desktop.** `player_controller.gd` feeds `touch.aim.x * 0.5` into
+`cmd.roll`, which folds roughly 0.42 rad on top of `MAX_BANK` — about 98° of bank on touch against
+75° on desktop. Tune when the Android build is first flown.
+
+**Touch hit zones are not the drawn rectangles.** The fire zone is any press with `x > 0.8w` and
+`y > 0.6h`, which overlaps the drawn throttle-down box; the whole right half is live, and the
+drawn boxes are decorative. Releasing any non-stick touch zeroes both throttle and fire.
+
+**Testing the touch layout needs an editor setting.** `FORCE_TOUCH_UI` alone is not enough:
+`input_devices/pointing/emulate_touch_from_mouse` must also be on, or no `InputEventScreenTouch`
+is ever delivered and the aircraft is uncontrollable.
+
+**The boundary aims you at the summit.** It rotates aim toward `(0, 0, 0)`, and the island's peak
+sits within 600 m of the origin at roughly cruise altitude. A hands-off return from the world edge
+flies into it after about 30 seconds.
+
+**No physics interpolation.** On a display above 60 Hz the aircraft's transform steps about 2 m
+per tick against a smoothly interpolated camera, which reads as mild judder.
+
+---
+
+## 19. Working agreements
 
 - Only real project files live in the project directory; scratch work goes to a scratchpad
   outside it.
