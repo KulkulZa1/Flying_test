@@ -163,6 +163,40 @@ AUTO_BANK_GAIN 2.5        MANUAL_ROLL_RATE 2.5 rad/s      SAG_RATE 1.2 rad/s
 AIM_CONE_DEG 35           GROUND_CLEARANCE 3 m
 ```
 
+### Structural bounds — correcting two earlier overclaims
+
+Earlier drafts of this document asserted that speed never exceeds `MAX_SPEED` and that bank never
+exceeds `MAX_BANK`. Both were measured false, and in both cases the *code* is right and the claim
+was wrong.
+
+**Speed ceiling.** `MAX_SPEED` is the level-flight maximum, not an absolute limit. A sustained
+dive settles at `MAX_SPEED + GRAVITY / ENGINE_RESPONSE` — about **191 m/s** vertically, 6% over.
+This is correct and wanted: energy management is the substance of a dogfight, and a dive that
+bought no speed would remove the main reason to trade altitude. Clamping it would be the bug.
+
+**Bank ceiling.** `MAX_BANK` clamps the *automatic* bank target only. Manual roll folds in on top,
+so the reachable bound is `MAX_BANK + MANUAL_ROLL_RATE / BANK_RESPONSE` = **2.13 rad (122°)**;
+the peak actually measured with the stick held into a sustained turn is **1.85 rad (106°)**. Also
+correct: manual roll that could not beat the automatic lean would not be manual control.
+
+**Bank is exact at any timestep.** `apply_bank` folds manual roll into the target rather than
+adding it as a separate term, because `bank' = roll·MANUAL_ROLL_RATE + BANK_RESPONSE·(target -
+bank)` is an exponential approach to `target + roll·MANUAL_ROLL_RATE/BANK_RESPONSE`. An earlier
+attempt that added the manual term separately was exact only as `dt` approached zero and made the
+equilibrium spread 2.1% across 120 Hz to 45 Hz. The current form agrees to 1.3e-7 rad across that
+range. The rate cap survives because it can bind only during transients, never at equilibrium.
+
+Both bounds are now pinned by tests, so a future change that alters them is deliberate.
+
+**Open feel question for Phase 1 tuning.** With no turn, holding full roll converges to
+**0.83 rad (47.7°)** and stops, because the auto-bank servo cancels it. The plane therefore
+cannot barrel-roll or fly inverted. That is literally what "plus manual roll at
+`MANUAL_ROLL_RATE`" specifies, and may be right for an aim-to-steer game where roll is mostly
+cosmetic — but it will surprise anyone who holds the stick expecting a roll. Suppressing the
+servo while roll is held (two lines) would give continuous rolling. Deferred to the Phase 1
+manual tuning pass, when it can be judged with the game actually running rather than from a test
+harness.
+
 ### Which levers actually move which behaviour
 
 Measured on the implemented model, so that tuning by feel is not tuning blind.
@@ -287,13 +321,13 @@ implementation rather than assumed.
 
 Covered headless:
 
-- **Flight model** — speed is never negative and never exceeds `MAX_SPEED`; turn rate never
-  exceeds the authority curve; cruise flight with neutral input holds altitude without drift;
-  climbing bleeds speed and diving gains it; **one second of spool-up gives the same speed at
-  dt=1/120 and dt=1/45** (the real framerate guard); trajectory heading and position agree across
-  timestep; peak bank stays under `MAX_BANK`; recovery from below stall speed terminates,
-  including from a near-vertical zoom climb; idle throttle settles into a descending glide
-  rather than diverging
+- **Flight model** — speed is never negative and stays within the dive ceiling below; turn rate
+  never exceeds the authority curve; cruise flight with neutral input holds altitude without
+  drift; climbing bleeds speed and diving gains it; **one second of spool-up gives the same speed
+  at dt=1/120 and dt=1/45** (the real framerate guard); one second of bank response likewise;
+  trajectory heading and position agree across timestep; peak bank stays within the bank ceiling
+  below; recovery from below stall speed terminates, including from a near-vertical zoom climb;
+  idle throttle settles into a descending glide rather than diverging
 - **AI** — each state transition fires on its documented condition; no state can deadlock
 - **Waves** — count and jitter curves match the specified formulas at wave boundaries
 - **Scoring** — combo chains inside the window, breaks outside it, caps at x4

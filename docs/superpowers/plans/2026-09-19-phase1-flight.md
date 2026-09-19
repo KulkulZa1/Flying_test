@@ -1932,7 +1932,9 @@ Expected: `failures: 0`, `exit=0`, covering config, flight model, terrain and bo
 "$GODOT" --path .
 ```
 
-- [ ] Level flight with the mouse at screen centre holds altitude with no drift
+- [ ] Level flight with the mouse at screen centre holds altitude with no drift — the model side
+      of this is already covered by `test_level_flight_holds_altitude`, so a failure here points
+      at the controller, not the physics
 - [ ] A full loop completes without losing orientation or control
 - [ ] Throttle produces a felt difference: slow is mushy, fast is stiff
 - [ ] Terrain contact restarts cleanly in the air
@@ -1940,6 +1942,13 @@ Expected: `failures: 0`, `exit=0`, covering config, flight model, terrain and bo
 - [ ] HUD speed, altitude, throttle and horizon all track reality
 - [ ] With `FORCE_TOUCH_UI = true` and mouse touch emulation on, the touch layout flies the plane
 - [ ] Holds 60 fps (check with **Debug > Visible Profiler**, or Godot's `--print-fps`)
+
+**One feel decision to make with the stick in hand, not before.** Holding full manual roll with
+no turn settles at 0.83 rad (47.7°) and stops, because the auto-bank servo cancels it — the plane
+cannot barrel-roll or fly inverted. That is literally what the spec asks for, and may be right
+for an aim-to-steer game where roll is mostly cosmetic. If it feels wrong while flying,
+suppressing the servo whenever `cmd.roll` is non-zero gives continuous rolling and is a two-line
+change to `apply_bank`.
 
 - [ ] **Step 3: Confirm no process is left behind**
 
