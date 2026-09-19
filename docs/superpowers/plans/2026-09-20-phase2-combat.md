@@ -28,6 +28,12 @@ follow, and they are not optional here:
    deleted.
 3. **Assert properties, not arbitrary numbers.** A bound invented to look reasonable either passes
    vacuously or contradicts the implementation — both happened in Phase 1.
+4. **Check the *geometry* of a test, not just its assertion.** Two tests written from this very
+   plan passed with the behaviour they were named for entirely removed, because of where their
+   aircraft were placed: a prey dead ahead lies on the roll axis, so body-frame and world-frame
+   aim are identical there; a prey above the hunter makes pursuit aim point up, so a climb
+   assertion cannot tell climbing from pursuing. Symmetric, tidy-looking positions are exactly
+   the ones that hide bugs. Place things off-axis on purpose.
 
 ### The aim-frame trap does not recur here, and that is worth knowing
 
@@ -722,7 +728,10 @@ func test_ai_climbs_when_low() -> void:
 	var pilot := AIPilot.new()
 	pilot.jitter_degrees = 0.0
 	var self_craft := _target_at(Vector3(0.0, 50.0, 0.0))
-	var prey := _target_at(Vector3(0.0, 600.0, -2000.0))
+	# Below the hunter, so pursuit aim would point down: only a real climb passes.
+	# With the prey above, this test's aim assertion passed even with the whole
+	# REPOSITION branch deleted.
+	var prey := _target_at(Vector3(0.0, 20.0, -2000.0))
 	pilot.target = prey
 	var cmd := pilot.command(self_craft, 1.0 / 60.0)
 	check(pilot.state == AIPilot.State.REPOSITION, "an AI below its floor repositions")
@@ -733,7 +742,11 @@ func test_ai_climbs_when_low() -> void:
 func test_ai_aim_is_world_space_not_body_relative() -> void:
 	var pilot := AIPilot.new()
 	pilot.jitter_degrees = 0.0
-	var prey := _target_at(Vector3(0.0, 600.0, -800.0))
+	# Deliberately off the boresight. A prey dead ahead lies on the very axis this
+	# test rolls the aircraft about, so a body-frame aim is numerically identical
+	# to a world-frame one and the test passes with the Phase 1 dive bug fully
+	# present. Off-boresight the same mutation shows a 73 degree aim error.
+	var prey := _target_at(Vector3(300.0, 750.0, -800.0))
 	pilot.target = prey
 	var level := _target_at(Vector3(0.0, 600.0, 0.0))
 	var banked := _target_at(Vector3(0.0, 600.0, 0.0))
