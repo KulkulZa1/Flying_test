@@ -13,10 +13,17 @@ func _physics_process(delta: float) -> void:
 	if controller == null:
 		return
 	model.step(controller.command(self, delta), delta)
-	global_position = model.position
-	global_transform.basis = model.basis
+	sync_transform()
 	if is_below_ground():
 		crashed.emit()
+
+## The only place the node's transform is written. Guarded because reset() runs
+## before the aircraft enters the tree, and global_transform hard-fails there.
+func sync_transform() -> void:
+	if not is_inside_tree():
+		return
+	global_position = model.position
+	global_transform.basis = model.basis
 
 ## Extracted from _physics_process so it can be tested without a scene tree.
 func is_below_ground() -> bool:
@@ -28,5 +35,4 @@ func is_below_ground() -> bool:
 func reset(start_position: Vector3) -> void:
 	model = FlightModel.new()
 	model.position = start_position
-	global_position = start_position
-	global_transform.basis = Basis.IDENTITY
+	sync_transform()
