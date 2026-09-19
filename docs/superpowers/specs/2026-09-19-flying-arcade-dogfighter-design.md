@@ -354,7 +354,42 @@ Kills within `COMBO_WINDOW 4 s` of each other chain: multiplier `+0.5` per link,
 Score is `BASE_KILL_SCORE 100` times the multiplier. High score persists to
 `user://highscore.cfg`.
 
-Single life. Death shows the score and restarts.
+Single life, and it is enforced: ground contact ends the run exactly as being shot down does.
+Restarting on a crash made diving into the sea a free full heal that kept your score and wave, so
+the optimal defensive move was suicide.
+
+### Why the combat constants are what they are
+
+Measured on the assembled game, not chosen by feel.
+
+**The trade ratio sets the maximum wave size.** You need `ENEMY_HP / BULLET_DAMAGE` = 4 hits to
+kill a fighter; they need `PLAYER_HP / BULLET_DAMAGE` to kill you, but *N* of them shoot at once
+while you shoot one at a time. Break-even is therefore `PLAYER_HP / BULLET_DAMAGE / 4 ≈ N`. At the
+original 100 HP that put break-even at N ≈ 3.1 against waves reaching 4 fighters at wave 6 and
+capping at 6 — the second half of the game was unwinnable, and measured deaths bore that out: a
+competent pilot died at wave 6 even with a smaller aim error than any enemy ever gets. At 180 HP
+and a cap of 5, break-even moves to N ≈ 5.6 against a maximum of 5, and the player additionally
+has a speed advantage and no aim jitter.
+
+**The fire-rate floor must be one interval.** Flooring the cooldown deeper lets it bank while the
+trigger is held but blocked, then dump the arrears at the physics rate. With a one-second floor,
+a burst after two seconds idle fired 24 rounds in its first second, the first 15 at 60 rounds per
+second — 192 damage against a 100 HP player, from both sides.
+
+**Aim jitter must be per-pilot.** Jitter magnitude follows a sine, which is exactly zero at
+predictable instants. With a shared starting phase and rate, every fighter in a wave reached
+perfect aim at the same moment, and first contact happened to land on one of those zeros. Phase
+and rate are randomised per pilot.
+
+**Kills must be attributed.** Rounds report which craft fired them, because wave ten was measured
+with five of six enemies killed by their own crossfire — each paying the player a full kill with
+combo multiplier. A passive player farmed score by hiding. Enemies lost to terrain likewise score
+nothing: their altitude floor sits below the island's peaks, so that was farmable too.
+
+**Spawns rotate rather than shorten.** Clamping the spawn ring's radius against the world centre
+collapsed its distance from the *player*: at 3800 m out the nearest fighter appeared 100 m away,
+inside `MIN_SEPARATION`. The ring now rotates to find an angle inside the world and keeps its
+radius.
 
 ---
 

@@ -14,7 +14,10 @@ var _streaks: MultiMeshInstance3D = null
 
 func _ready() -> void:
 	var mesh := BoxMesh.new()
-	mesh.size = Vector3(0.3, 0.3, 9.0)  # a streak drawn along its own travel
+	# Drawn along its own travel, and slightly longer than the 10 m a round covers
+	# in one frame at 60 Hz, so consecutive frames overlap into a stream rather
+	# than leaving a one-metre gap and reading as a dotted line.
+	mesh.size = Vector3(0.3, 0.3, 12.0)
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.albedo_color = Color(1.0, 0.86, 0.38)
