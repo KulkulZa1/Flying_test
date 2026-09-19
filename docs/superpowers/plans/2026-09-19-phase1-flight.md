@@ -26,8 +26,14 @@ cd /d/toy_project/Flying
 **Test command.** One command runs everything, used in every task:
 
 ```bash
-"$GODOT" --headless --path . --script res://tests/run_tests.gd; echo "exit=$?"
+bash tests/run.sh; echo "exit=$?"
 ```
+
+Always this wrapper, never the raw `--script` invocation. The harness cannot see engine stderr,
+so a test that asserts once and then errors reports a clean pass — Godot prints `SCRIPT ERROR`
+with a backtrace, but `failures: 0` is unaffected. `tests/run.sh` treats any `SCRIPT ERROR` as a
+failure, which fixes the exit code. Since "assert a precondition, act, assert the result" is the
+ordinary shape of the flight-model tests ahead, this is a live trap, not a theoretical one.
 
 **Import first, after adding any new `class_name` script.** Godot resolves `class_name` types
 from a registry built during import. A cold run, or the first run after a new class is added,
@@ -271,7 +277,46 @@ func test_harness_runs_test_methods() -> void:
 
 Run the same command. Expected: `checks: 1  failures: 0` and `exit=0`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Add the runner wrapper that catches script errors**
+
+The harness cannot see engine stderr. A test that asserts once and then errors reports
+`checks: 1  failures: 0  exit=0` — a false pass — while Godot prints a `SCRIPT ERROR` backtrace
+nobody's exit code reads. `-> bool` return-value tracking would close this fully but imposes a
+contract on every test method in every later task; grepping the runner's own output catches the
+same errors and changes no test's contract.
+
+`tests/run.sh`:
+
+```bash
+#!/usr/bin/env bash
+# Runs the headless test suite.
+#
+# The harness cannot see engine stderr, so a test that asserts once and then
+# errors leaves it reporting a clean pass. Godot still prints SCRIPT ERROR with
+# a backtrace, so treating any SCRIPT ERROR as a failure closes that gap in the
+# exit code, which is what automation keys on.
+set -uo pipefail
+
+GODOT="${GODOT:?set GODOT to the Godot 4 _console executable}"
+
+output=$("$GODOT" --headless --path . --script res://tests/run_tests.gd 2>&1)
+status=$?
+printf '%s\n' "$output"
+
+if printf '%s' "$output" | grep -q 'SCRIPT ERROR'; then
+	echo "FAIL: SCRIPT ERROR in output - a test errored mid-run and may have reported a false pass"
+	status=1
+fi
+
+exit $status
+```
+
+Verify it catches what the harness cannot: temporarily give `tests/test_smoke.gd` a body that
+calls `check(true, ...)` and then errors (`var x = null` then `x.nonexistent_method()`).
+`bash tests/run.sh` must report `exit=1` while the raw `--script` invocation still reports
+`exit=0` on the same file. Restore the file afterwards.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add project.godot scenes scripts tests
@@ -328,7 +373,7 @@ Delete `tests/test_smoke.gd` — it has served its purpose.
 - [ ] **Step 2: Run to verify it fails**
 
 ```bash
-"$GODOT" --headless --path . --script res://tests/run_tests.gd; echo "exit=$?"
+bash tests/run.sh; echo "exit=$?"
 ```
 
 Expected: a parse error naming `Config` as an unknown identifier, and `exit=1`.
@@ -1220,7 +1265,7 @@ script = ExtResource("2_visual")
 - [ ] **Step 4: Verify the project still parses**
 
 ```bash
-"$GODOT" --headless --path . --script res://tests/run_tests.gd; echo "exit=$?"
+bash tests/run.sh; echo "exit=$?"
 ```
 
 Expected: `failures: 0`, `exit=0`, with no parse errors for the new scripts.
@@ -1842,7 +1887,7 @@ Phase 1 is done, and Phase 2 may start, only when every box below is ticked.
 - [ ] **Step 1: Full automated run**
 
 ```bash
-"$GODOT" --headless --path . --script res://tests/run_tests.gd; echo "exit=$?"
+bash tests/run.sh; echo "exit=$?"
 ```
 
 Expected: `failures: 0`, `exit=0`, covering config, flight model, terrain and boundary.
