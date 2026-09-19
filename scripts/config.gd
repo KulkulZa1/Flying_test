@@ -77,3 +77,10 @@ const MAX_WAVE_SIZE := 6
 const JITTER_RAMP_WAVES := 10
 const SPAWN_RADIUS := 2200.0        # m from the player
 const SPAWN_ALTITUDE := 700.0       # m
+
+# --- Scoring ---
+const BASE_KILL_SCORE := 100
+const COMBO_WINDOW := 4.0           # s within which kills chain
+const COMBO_STEP := 0.5
+const COMBO_CAP := 4.0
+const HIGH_SCORE_PATH := "user://highscore.cfg"
