@@ -1393,7 +1393,7 @@ func _on_player_died() -> void:
 	_spawn_wave()
 ```
 
-- [ ] **Step 3: Run to verify green.** Expect `checks: 208  failures: 0` (205 + 3).
+- [ ] **Step 3: Run to verify green.** Expect `checks: 231  failures: 0` after the post-review fixes.
 
 - [ ] **Step 4: Headless boot check**
 
@@ -1413,7 +1413,7 @@ git commit -m "Wire combat into the game loop" && git push -u origin phase2-comb
 
 ## Phase 2 acceptance
 
-Automated: `checks: 208  failures: 0`, plus every mutation check named in each task.
+Automated: `checks: 231  failures: 0`, plus every mutation check named in each task.
 
 Manual, for the user:
 
