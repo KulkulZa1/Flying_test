@@ -48,3 +48,23 @@ func apply_steering(cmd: InputCommand, dt: float) -> void:
 	var applied := minf(angle, turn_rate() * dt)
 	basis = (Basis(axis, applied) * basis).orthonormalized()
 	last_yaw_rate = axis.y * applied / dt
+
+func bank_angle() -> float:
+	var fwd := forward()
+	var level_right := fwd.cross(Vector3.UP)
+	if level_right.length_squared() < 1e-6:
+		return 0.0  # pointing straight up or down: bank is undefined
+	level_right = level_right.normalized()
+	var level_up := level_right.cross(fwd).normalized()
+	var up := basis.y
+	return atan2(up.dot(level_right), up.dot(level_up))
+
+func apply_bank(cmd: InputCommand, dt: float) -> void:
+	var target := clampf(-last_yaw_rate * Config.AUTO_BANK_GAIN,
+		-Config.MAX_BANK, Config.MAX_BANK)
+	var correction := clampf((target - bank_angle()) * Config.BANK_RESPONSE,
+		-Config.MANUAL_ROLL_RATE, Config.MANUAL_ROLL_RATE)
+	var rate := cmd.roll * Config.MANUAL_ROLL_RATE + correction
+	if absf(rate) < 1e-9:
+		return
+	basis = (Basis(forward(), rate * dt) * basis).orthonormalized()

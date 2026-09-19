@@ -122,3 +122,44 @@ func test_steering_ignores_degenerate_aim() -> void:
 	cmd.aim_dir = Vector3(NAN, 0.0, 0.0)
 	fm.apply_steering(cmd, 0.1)
 	check(fm.forward().is_finite(), "a non-finite aim vector must not corrupt the basis")
+
+func test_level_flight_has_no_bank() -> void:
+	var fm := FlightModel.new()
+	check_approx(fm.bank_angle(), 0.0, 1e-6, "an identity basis is wings level")
+
+func test_right_turn_banks_right() -> void:
+	var fm := FlightModel.new()
+	fm.speed = Config.BEST_TURN_SPEED
+	var cmd := InputCommand.new()
+	cmd.aim_dir = Vector3.RIGHT
+	for i in 30:
+		fm.apply_steering(cmd, 1.0 / 60.0)
+		fm.apply_bank(cmd, 1.0 / 60.0)
+	check(fm.bank_angle() > 0.1, "a sustained right turn banks right")
+
+func test_left_turn_banks_left() -> void:
+	var fm := FlightModel.new()
+	fm.speed = Config.BEST_TURN_SPEED
+	var cmd := InputCommand.new()
+	cmd.aim_dir = Vector3.LEFT
+	for i in 30:
+		fm.apply_steering(cmd, 1.0 / 60.0)
+		fm.apply_bank(cmd, 1.0 / 60.0)
+	check(fm.bank_angle() < -0.1, "a sustained left turn banks left")
+
+func test_bank_is_clamped() -> void:
+	var fm := FlightModel.new()
+	fm.speed = Config.BEST_TURN_SPEED
+	var cmd := InputCommand.new()
+	cmd.aim_dir = Vector3.RIGHT
+	for i in 600:
+		fm.apply_steering(cmd, 1.0 / 60.0)
+		fm.apply_bank(cmd, 1.0 / 60.0)
+	check(absf(fm.bank_angle()) <= Config.MAX_BANK + 0.05, "bank never exceeds MAX_BANK")
+
+func test_manual_roll_rolls() -> void:
+	var fm := FlightModel.new()
+	var cmd := InputCommand.new()
+	cmd.roll = 1.0
+	fm.apply_bank(cmd, 0.1)
+	check(fm.bank_angle() > 0.0, "positive roll input banks right")
