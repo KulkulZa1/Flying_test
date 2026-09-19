@@ -70,7 +70,8 @@ func test_ai_climbs_when_low() -> void:
 	var pilot := AIPilot.new()
 	pilot.jitter_degrees = 0.0
 	var hunter := _craft_at(Vector3(0.0, 50.0, 0.0))
-	var prey := _craft_at(Vector3(0.0, 600.0, -2000.0))
+	# Below the hunter, so pursuit aim would point down: only a real climb passes.
+	var prey := _craft_at(Vector3(0.0, 20.0, -2000.0))
 	pilot.target = prey
 	var cmd := pilot.command(hunter, 1.0 / 60.0)
 	check(pilot.state == AIPilot.State.REPOSITION, "an AI below its floor repositions")
@@ -81,7 +82,10 @@ func test_ai_climbs_when_low() -> void:
 func test_ai_aim_does_not_depend_on_its_own_bank() -> void:
 	var pilot := AIPilot.new()
 	pilot.jitter_degrees = 0.0
-	var prey := _craft_at(Vector3(0.0, 600.0, -800.0))
+	# Deliberately off the boresight: a prey dead ahead lies on the roll axis, so
+	# a body-frame aim would be numerically identical to a world-frame one and the
+	# test would pass with the bug present.
+	var prey := _craft_at(Vector3(300.0, 750.0, -800.0))
 	pilot.target = prey
 	var level := _craft_at(Vector3(0.0, 600.0, 0.0))
 	var banked := _craft_at(Vector3(0.0, 600.0, 0.0))
