@@ -5,6 +5,7 @@ const SUITES := [
 	"res://tests/test_flight_model.gd",
 	"res://tests/test_terrain.gd",
 	"res://tests/test_aircraft.gd",
+	"res://tests/test_camera.gd",
 ]
 
 var _checks := 0
