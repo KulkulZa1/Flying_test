@@ -257,3 +257,14 @@ func test_idle_throttle_settles_into_a_glide() -> void:
 	check(fm.position.y < 0.0, "idle throttle descends rather than holding altitude")
 	check(fm.speed > 0.0 and fm.speed <= Config.MAX_SPEED + 1.0, "glide speed stays in band")
 	check(fm.basis.is_finite(), "a long glide does not corrupt the basis")
+
+func test_level_flight_holds_altitude() -> void:
+	var fm := FlightModel.new()
+	fm.throttle = 0.6
+	fm.speed = lerpf(Config.MIN_SPEED, Config.MAX_SPEED, 0.6)
+	var cmd := InputCommand.new()
+	for i in 600:  # 10 seconds
+		cmd.aim_dir = fm.forward()
+		fm.step(cmd, 1.0 / 60.0)
+	check(absf(fm.position.y) < 1.0, "level flight with neutral input holds altitude")
+	check(fm.speed > Config.STALL_SPEED, "cruise throttle stays clear of stall speed")
