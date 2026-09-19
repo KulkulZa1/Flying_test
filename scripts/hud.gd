@@ -8,6 +8,11 @@ var scoring: Scoring = null
 var enemies: Array = []
 var _font: Font
 
+## Public and advanced by an explicit call rather than read from _process, so the
+## banner's lifetime can be tested without a scene tree.
+var banner_seconds := 0.0
+var banner_score := 0
+
 ## Nose up puts the real horizon BELOW the reticle, and screen Y grows downward,
 ## so positive pitch gives a positive offset.
 static func horizon_offset(pitch: float, view_height: float) -> float:
@@ -37,7 +42,15 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-func _process(_delta: float) -> void:
+func show_death(final_score: int) -> void:
+	banner_score = final_score
+	banner_seconds = Config.DEATH_BANNER_SECONDS
+
+func advance_banner(delta: float) -> void:
+	banner_seconds = maxf(banner_seconds - delta, 0.0)
+
+func _process(delta: float) -> void:
+	advance_banner(delta)
 	queue_redraw()
 
 func _draw() -> void:
@@ -50,6 +63,8 @@ func _draw() -> void:
 	_draw_health()
 	_draw_score()
 	_draw_enemy_markers(centre)
+	if banner_seconds > 0.0:
+		_draw_death_banner(centre)
 
 func _draw_reticle(centre: Vector2) -> void:
 	draw_arc(centre, 14.0, 0.0, TAU, 32, HUD_COLOR, 2.0)
@@ -99,3 +114,10 @@ func _draw_enemy_markers(centre: Vector2) -> void:
 		if not is_behind(view, relative) and target.model.forward().angle_to(relative.normalized()) < 0.5:
 			continue  # already on screen
 		draw_circle(centre + marker_direction(view, relative) * (size.y * 0.40), 6.0, HUD_COLOR)
+
+## Deliberately drawn over everything else: the only other signal that a run
+## ended is the score snapping to zero, which reads as a glitch rather than a
+## death.
+func _draw_death_banner(centre: Vector2) -> void:
+	_text(centre + Vector2(-56.0, -24.0), "SHOT DOWN")
+	_text(centre + Vector2(-56.0, 4.0), "SCORE %d" % banner_score)

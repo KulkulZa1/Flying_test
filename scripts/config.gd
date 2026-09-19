@@ -89,3 +89,6 @@ const HIGH_SCORE_PATH := "user://highscore.cfg"
 const DEBRIS_COUNT := 5
 const DEBRIS_LIFETIME := 6.0        # s
 const DEBRIS_SPEED := 14.0          # m/s of initial scatter
+
+# --- Feedback ---
+const DEATH_BANNER_SECONDS := 2.5

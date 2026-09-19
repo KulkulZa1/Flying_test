@@ -169,6 +169,7 @@ func _on_enemy_crashed(enemy: Aircraft) -> void:
 ## respawned pilot faced the wave that had just killed them, with the counter
 ## stuck at zero until they cleared it.
 func _on_player_died() -> void:
+	hud.show_death(scoring.score)
 	scoring.save_high_score()
 	scoring.reset_run()
 	wave = 0
@@ -181,6 +182,7 @@ func _on_player_died() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		scoring.save_high_score()
 		get_tree().quit()
 
 ## Spec section 14: the game pauses on focus loss. Notifications are delivered
@@ -191,3 +193,5 @@ func _notification(what: int) -> void:
 		get_tree().paused = true
 	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
 		get_tree().paused = false
+	elif what == NOTIFICATION_WM_CLOSE_REQUEST:
+		scoring.save_high_score()

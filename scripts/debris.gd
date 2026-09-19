@@ -3,7 +3,9 @@ extends Node3D
 
 ## Scatters tumbling chunks that free themselves. Rigid bodies are used here and
 ## nowhere else in the project: this is decoration rather than control, so the
-## solver's nondeterminism costs nothing and collision response comes free.
+## solver's nondeterminism costs nothing and tumbling comes free. Note the
+## terrain has no collision body, so chunks fall through the island rather than
+## landing on it.
 static func scatter(parent: Node3D, at: Vector3, inherited: Vector3) -> void:
 	for i in Config.DEBRIS_COUNT:
 		var size := Vector3(randf_range(0.4, 1.2), randf_range(0.4, 1.0), randf_range(0.6, 1.6))
