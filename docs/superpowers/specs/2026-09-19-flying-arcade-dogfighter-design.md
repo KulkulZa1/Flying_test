@@ -434,6 +434,26 @@ Android export is a packaging exercise rather than a redesign.
 
 ---
 
+### Degenerate-case guards must decide, not abstain
+
+Two separate guards, each individually reasonable, composed into a permanent no-op. The world
+boundary at full strength returns an aim exactly antiparallel to a radial heading; `apply_steering`
+saw "exactly reversed, no unique rotation axis" and returned without turning. The result was an
+aircraft flying dead straight out of the world to 11,240 m against a 4,000 m radius — with the
+boundary having *bit-for-bit identical* effect to not existing at all.
+
+The lesson generalises past this instance. When a guard detects a degenerate input, abstaining is
+rarely the safe default it looks like: here, "no unique axis" was true and irrelevant, because any
+perpendicular axis turns the aircraft around. Prefer picking an arbitrary valid answer over
+declining to act.
+
+Worth noting how it was caught: not by either component's own tests, both of which pass. It took a
+test that drove a real controller through a real `FlightModel` for a sustained period — the same
+shape that caught the Phase 1 aim-frame blocker, and the first thing that shape was pointed at in
+Phase 2.
+
+---
+
 ## 18. Known limitations at the end of Phase 1
 
 Found by a final review that measured the assembled game rather than reading it. None blocks

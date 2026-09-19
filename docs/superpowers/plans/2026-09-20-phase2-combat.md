@@ -50,8 +50,12 @@ bash tests/run.sh; echo "exit=$?"
 
 - **Always the wrapper**, never raw `--script`: the harness cannot see engine stderr, and
   `run.sh` fails the run on any `SCRIPT ERROR`.
-- `"$GODOT" --headless --path . --import` once after adding any `class_name` script. Commit the
-  generated `.gd.uid`; never commit `.godot/`.
+- `"$GODOT" --headless --path . --import` once after adding any `class_name` script, or the type
+  will not resolve. Never commit `.godot/`.
+- **`.uid` sidecars need the editor, not `--import`.** `tests/run.sh` and plain `--script` never
+  touch `.godot/uid_cache.bin`, so a new test file gets no `.gd.uid` from them. Run
+  `"$GODOT" --headless --editor --quit` once; it generates the sidecar, exits 0 and touches
+  nothing else. Every task here adds a test file, so this is needed every time.
 - TAB indentation. **Never `sed -i`** — it rewrites whole-file line endings on this machine.
 - Nodes are not reference-counted: tests `free()` what they create.
 - Godot uses **32-bit floats**; use float32 epsilon (~1.19e-7) when reasoning about residuals.
