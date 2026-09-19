@@ -62,12 +62,13 @@ func bank_angle() -> float:
 func apply_bank(cmd: InputCommand, dt: float) -> void:
 	var target := clampf(-last_yaw_rate * Config.AUTO_BANK_GAIN,
 		-Config.MAX_BANK, Config.MAX_BANK)
-	var correction := clampf((target - bank_angle()) * Config.BANK_RESPONSE,
-		-Config.MANUAL_ROLL_RATE, Config.MANUAL_ROLL_RATE)
-	var rate := cmd.roll * Config.MANUAL_ROLL_RATE + correction
-	if absf(rate) < 1e-9:
+	var cap := Config.MANUAL_ROLL_RATE * dt
+	var correction := clampf((target - bank_angle()) * (1.0 - exp(-Config.BANK_RESPONSE * dt)),
+		-cap, cap)
+	var delta := cmd.roll * Config.MANUAL_ROLL_RATE * dt + correction
+	if absf(delta) < 1e-9:
 		return
-	basis = (Basis(forward(), rate * dt) * basis).orthonormalized()
+	basis = (Basis(forward(), delta) * basis).orthonormalized()
 
 func apply_stall_sag(dt: float) -> void:
 	if speed >= Config.STALL_SPEED:

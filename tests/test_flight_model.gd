@@ -268,3 +268,45 @@ func test_level_flight_holds_altitude() -> void:
 		fm.step(cmd, 1.0 / 60.0)
 	check(absf(fm.position.y) < 1.0, "level flight with neutral input holds altitude")
 	check(fm.speed > Config.STALL_SPEED, "cruise throttle stays clear of stall speed")
+
+func test_bank_response_is_framerate_independent() -> void:
+	var fast := FlightModel.new()
+	var slow := FlightModel.new()
+	var cmd := InputCommand.new()
+	for fm in [fast, slow]:
+		fm.speed = Config.BEST_TURN_SPEED
+		fm.last_yaw_rate = -0.1  # small enough that the rate cap never binds
+	for i in 120:
+		fast.apply_bank(cmd, 1.0 / 120.0)
+	for i in 40:
+		slow.apply_bank(cmd, 1.0 / 40.0)
+	check_approx(fast.bank_angle(), slow.bank_angle(), 0.01,
+		"one second of bank response must not depend on timestep")
+
+func test_speed_bound_in_a_sustained_dive() -> void:
+	var fm := FlightModel.new()
+	fm.throttle = 1.0
+	fm.speed = Config.MAX_SPEED
+	fm.basis = Basis(Vector3.RIGHT, deg_to_rad(-90.0))  # straight down
+	var cmd := InputCommand.new()
+	for i in 7200:  # two minutes
+		cmd.aim_dir = fm.forward()
+		fm.step(cmd, 1.0 / 60.0)
+	check(fm.speed > Config.MAX_SPEED,
+		"diving gains energy past level-flight maximum, by design")
+	check(fm.speed <= Config.MAX_SPEED + Config.GRAVITY / Config.ENGINE_RESPONSE + 1.0,
+		"dive speed settles at MAX_SPEED + GRAVITY / ENGINE_RESPONSE")
+
+func test_manual_roll_bank_is_bounded() -> void:
+	var fm := FlightModel.new()
+	fm.speed = Config.BEST_TURN_SPEED
+	var cmd := InputCommand.new()
+	cmd.aim_dir = Vector3.RIGHT
+	cmd.roll = 1.0
+	var peak := 0.0
+	for i in 600:
+		fm.apply_steering(cmd, 1.0 / 60.0)
+		fm.apply_bank(cmd, 1.0 / 60.0)
+		peak = maxf(peak, absf(fm.bank_angle()))
+	check(peak <= Config.MAX_BANK + Config.MANUAL_ROLL_RATE / Config.BANK_RESPONSE + 0.1,
+		"manual roll adds at most MANUAL_ROLL_RATE / BANK_RESPONSE beyond MAX_BANK")
