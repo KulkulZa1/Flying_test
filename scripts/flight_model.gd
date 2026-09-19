@@ -73,9 +73,18 @@ func apply_bank(cmd: InputCommand, dt: float) -> void:
 	# exponential approach to target + roll*MANUAL_ROLL_RATE/BANK_RESPONSE, so
 	# discretising it this way is exact at any timestep.
 	var effective := target + cmd.roll * Config.MANUAL_ROLL_RATE / Config.BANK_RESPONSE
+	# The servo levels the wings, which is only meaningful while the aircraft is
+	# nearer upright than inverted. Through the top of a loop it is legitimately
+	# inverted and bank_angle() reads near 180 degrees; acting on that rolls hard
+	# to undo an attitude the player asked for, which turned every loop into a
+	# stable knife-edge. Keying the gate on bank rather than on pitch means the
+	# gate and the error it guards are the same measurement, so they cannot drift
+	# onto different timescales.
+	var authority := clampf(
+		(Config.BANK_SERVO_LIMIT - absf(bank_angle())) / Config.BANK_SERVO_FADE, 0.0, 1.0)
 	var cap := Config.MANUAL_ROLL_RATE * dt
 	var delta := clampf((effective - bank_angle()) * (1.0 - exp(-Config.BANK_RESPONSE * dt)),
-		-cap, cap)
+		-cap, cap) * authority
 	if not is_finite(delta) or absf(delta) < 1e-9:
 		return
 	basis = (Basis(forward(), delta) * basis).orthonormalized()

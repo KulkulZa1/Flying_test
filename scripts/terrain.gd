@@ -9,9 +9,11 @@ func _init() -> void:
 	_noise.frequency = Config.TERRAIN_FREQUENCY
 	# Default 5 octaves puts the finest detail at a 104 m wavelength against a
 	# 64 m mesh grid - below Nyquist, so the drawn surface and the collision
-	# field disagree by up to 29 m. Three octaves keeps the finest detail well
-	# above twice the grid spacing.
-	_noise.fractal_octaves = 3
+	# field disagreed by up to 29 m. Three octaves narrowed that to a worst
+	# case of 8.9 m - only a 0.08 m margin under the 9 m test bound. Two
+	# octaves widens the margin to 4.2 m (worst 4.8 m) while relief actually
+	# increases (727 m highest vs 656 m at five octaves).
+	_noise.fractal_octaves = 2
 
 func height_at(x: float, z: float) -> float:
 	var n := (_noise.get_noise_2d(x, z) + 1.0) * 0.5          # 0..1

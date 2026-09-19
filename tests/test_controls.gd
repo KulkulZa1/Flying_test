@@ -58,3 +58,18 @@ func test_deadzone_ramps_then_saturates() -> void:
 		"just outside the deadzone gives a small command, not a jump to full")
 	check_approx(PlayerController.apply_deadzone(Vector2(5.0, 0.0)).length(), 1.0, 1e-6,
 		"far outside the deadzone saturates at full deflection")
+
+func test_a_held_pull_completes_a_loop() -> void:
+	var fm := FlightModel.new()
+	fm.throttle = 1.0
+	fm.speed = Config.MAX_SPEED
+	var cmd := InputCommand.new()
+	var lowest := 1.0
+	var highest := -1.0
+	for i in 1800:  # thirty seconds of held back-pointer
+		cmd.aim_dir = PlayerController.aim_from_offset(fm.basis, Vector2(0.0, -1.0))
+		fm.step(cmd, 1.0 / 60.0)
+		lowest = minf(lowest, fm.forward().y)
+		highest = maxf(highest, fm.forward().y)
+	check(highest > 0.9, "a held pull takes the nose up through vertical")
+	check(lowest < -0.9, "and over the top and back down, so the loop completes")

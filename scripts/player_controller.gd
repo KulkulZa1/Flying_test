@@ -3,20 +3,19 @@ extends Node
 
 var touch: TouchControls = null
 
-## Yaw about world up and pitch about the LEVEL right axis, never the body's own.
-## Rotating about basis.y/basis.x couples aim to bank: once the auto-bank servo
-## rolls the aircraft 75 degrees, "right" in the body frame is nearly "down" in
-## the world, so any held turn becomes a dive.
+## Yaw about WORLD up, pitch about the aircraft's OWN right axis.
+##
+## Yaw must be world-referenced: rotating about basis.y couples aim to bank, so
+## once the servo rolls the aircraft 75 degrees a held turn becomes a dive.
+##
+## Pitch must be body-referenced: forward.cross(UP) flips sign the instant the
+## nose crosses vertical, which reverses the pitch command at the top of a loop
+## and pins the nose there. basis.x is continuous all the way round.
 static func aim_from_offset(basis: Basis, offset: Vector2) -> Vector3:
 	var cone := deg_to_rad(Config.AIM_CONE_DEG)
 	var clamped := apply_deadzone(offset)
-	var forward := -basis.z
-	var level_right := forward.cross(Vector3.UP)
-	if level_right.length_squared() < 1e-6:
-		level_right = basis.x  # nose is vertical: no level frame, fall back to the body
-	level_right = level_right.normalized()
-	var aim := forward.rotated(Vector3.UP, -clamped.x * cone)
-	return aim.rotated(level_right, -clamped.y * cone)
+	var aim := (-basis.z).rotated(Vector3.UP, -clamped.x * cone)
+	return aim.rotated(basis.x, -clamped.y * cone)
 
 ## Spec section 9 specifies a screen-centre deadzone; it was never implemented.
 ## Without it a single pixel of cursor offset commands 6.5 degrees per second, so

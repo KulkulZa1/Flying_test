@@ -347,6 +347,15 @@ func test_malformed_input_cannot_collapse_the_basis() -> void:
 	check(is_finite(fm.speed) and fm.speed >= 0.0, "a NaN command must not poison speed")
 	check(fm.position.is_finite(), "a NaN command must not poison position")
 
+func test_bank_servo_does_not_fight_inverted_flight() -> void:
+	var fm := FlightModel.new()
+	fm.speed = Config.BEST_TURN_SPEED
+	fm.basis = Basis(Vector3.FORWARD, deg_to_rad(175.0))  # very nearly inverted
+	var before := fm.bank_angle()
+	fm.apply_bank(InputCommand.new(), 1.0 / 60.0)
+	check(absf(fm.bank_angle() - before) < 0.01,
+		"an inverted aircraft must not be rolled upright by the servo mid-loop")
+
 func test_exactly_vertical_stall_tips_over() -> void:
 	var fm := FlightModel.new()
 	fm.speed = 5.0
