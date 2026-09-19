@@ -50,3 +50,13 @@ const START_CLEARANCE := 250.0      # m of air guaranteed under a spawn
 const FORCE_TOUCH_UI := false       # set true to exercise the touch layout on desktop
 const TOUCH_STICK_RADIUS := 110.0   # px of drag for full deflection
 const AIM_DEADZONE := 0.04          # fraction of half-height; below this, no command
+
+# --- Combat ---
+const BULLET_SPEED := 600.0         # m/s
+const FIRE_RATE := 12.0             # rounds per second
+const BULLET_DAMAGE := 8.0
+const BULLET_LIFETIME := 2.5        # s
+const HIT_RADIUS := 6.0             # m, roughly the jet's span
+const MUZZLE_FORWARD := 5.0         # m ahead of the model origin
+const PLAYER_HP := 100.0
+const ENEMY_HP := 30.0
