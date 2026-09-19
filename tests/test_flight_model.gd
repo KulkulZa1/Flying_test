@@ -212,14 +212,17 @@ func test_stall_recovery_terminates() -> void:
 	fm.throttle = 1.0
 	var cmd := InputCommand.new()
 	var recovered := false
+	var lowest := fm.forward().y
 	for i in 1200:  # 20 seconds
 		cmd.aim_dir = fm.forward()
 		fm.step(cmd, 1.0 / 60.0)
+		lowest = minf(lowest, fm.forward().y)
 		if fm.speed > Config.STALL_SPEED:
 			recovered = true
 			break
 	check(recovered, "a deep stall recovers within 20 seconds")
-	check(fm.basis.is_finite(), "the basis stays finite through a stall")
+	check(absf(fm.basis.determinant() - 1.0) < 1e-4, "the basis stays finite through a stall")
+	check(lowest < -0.01, "the nose must actually drop during the stall")
 
 func test_vertical_stall_recovers() -> void:
 	var fm := FlightModel.new()
@@ -228,13 +231,16 @@ func test_vertical_stall_recovers() -> void:
 	fm.basis = Basis(Vector3.RIGHT, deg_to_rad(89.0))  # near-vertical zoom climb
 	var cmd := InputCommand.new()
 	var recovered := false
+	var lowest := fm.forward().y
 	for i in 1800:  # 30 seconds
 		cmd.aim_dir = fm.forward()
 		fm.step(cmd, 1.0 / 60.0)
+		lowest = minf(lowest, fm.forward().y)
 		if fm.speed > Config.STALL_SPEED:
 			recovered = true
 			break
 	check(recovered, "a near-vertical zoom climb to near-zero speed recovers")
+	check(lowest < 0.99, "the nose must actually drop during the stall")
 
 func test_state_stays_finite_under_long_simulation() -> void:
 	var fm := FlightModel.new()
@@ -243,7 +249,7 @@ func test_state_stays_finite_under_long_simulation() -> void:
 		cmd.aim_dir = Vector3(sin(i * 0.01), 0.2, -1.0)
 		fm.step(cmd, 1.0 / 60.0)
 	check(fm.position.is_finite(), "position stays finite")
-	check(fm.basis.is_finite(), "basis stays finite")
+	check(absf(fm.basis.determinant() - 1.0) < 1e-4, "basis stays finite")
 	check(fm.speed >= 0.0 and fm.speed <= Config.MAX_SPEED + 1.0, "speed stays in band")
 
 func test_idle_throttle_settles_into_a_glide() -> void:
@@ -280,7 +286,7 @@ func test_bank_response_is_framerate_independent() -> void:
 		fast.apply_bank(cmd, 1.0 / 120.0)
 	for i in 40:
 		slow.apply_bank(cmd, 1.0 / 40.0)
-	check_approx(fast.bank_angle(), slow.bank_angle(), 0.01,
+	check_approx(fast.bank_angle(), slow.bank_angle(), 1e-4,
 		"one second of bank response must not depend on timestep")
 
 func test_speed_bound_in_a_sustained_dive() -> void:
@@ -308,6 +314,8 @@ func test_manual_roll_bank_is_bounded() -> void:
 		fm.apply_steering(cmd, 1.0 / 60.0)
 		fm.apply_bank(cmd, 1.0 / 60.0)
 		peak = maxf(peak, absf(fm.bank_angle()))
+	check(peak > Config.MAX_BANK + 0.1,
+		"manual roll must push bank past the automatic limit, or this test proves nothing")
 	check(peak <= Config.MAX_BANK + Config.MANUAL_ROLL_RATE / Config.BANK_RESPONSE + 0.1,
 		"manual roll adds at most MANUAL_ROLL_RATE / BANK_RESPONSE beyond MAX_BANK")
 
@@ -320,5 +328,21 @@ func test_manual_roll_equilibrium_is_framerate_independent() -> void:
 		fast.apply_bank(cmd, 1.0 / 120.0)  # five seconds
 	for i in 200:
 		slow.apply_bank(cmd, 1.0 / 40.0)   # five seconds
+	check(fast.bank_angle() > 0.5,
+		"manual roll must produce a real bank, or this test proves nothing")
 	check_approx(fast.bank_angle(), slow.bank_angle(), 0.01,
 		"the manual-roll equilibrium must not depend on timestep")
+
+func test_malformed_input_cannot_collapse_the_basis() -> void:
+	var fm := FlightModel.new()
+	var hostile := InputCommand.new()
+	hostile.roll = NAN
+	hostile.throttle_delta = NAN
+	fm.step(hostile, 1.0 / 60.0)
+	fm.step(hostile, 0.0)
+	var clean := InputCommand.new()
+	for i in 300:
+		fm.step(clean, 1.0 / 60.0)
+	check(absf(fm.basis.determinant() - 1.0) < 1e-4, "a NaN command must not collapse the basis")
+	check(is_finite(fm.speed) and fm.speed >= 0.0, "a NaN command must not poison speed")
+	check(fm.position.is_finite(), "a NaN command must not poison position")

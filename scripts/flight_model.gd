@@ -3,7 +3,7 @@ extends RefCounted
 
 var position := Vector3.ZERO
 var basis := Basis.IDENTITY
-var speed := Config.MIN_SPEED
+var speed := lerpf(Config.MIN_SPEED, Config.MAX_SPEED, Config.START_THROTTLE)
 var throttle := Config.START_THROTTLE
 
 ## Yaw component of the last steering step, rad/s. Read by apply_bank.
@@ -13,12 +13,15 @@ func forward() -> Vector3:
 	return -basis.z
 
 func apply_throttle(cmd: InputCommand, dt: float) -> void:
+	if not is_finite(cmd.throttle_delta):
+		return
 	throttle = clampf(throttle + cmd.throttle_delta * Config.THROTTLE_RATE * dt, 0.0, 1.0)
 
 func apply_engine_lag(dt: float) -> void:
 	var target := lerpf(Config.MIN_SPEED, Config.MAX_SPEED, throttle)
 	speed += (target - speed) * (1.0 - exp(-Config.ENGINE_RESPONSE * dt))
 
+## Pitch-to-energy coupling, not a force: it changes speed only. The plane always flies exactly along its nose.
 func apply_gravity(dt: float) -> void:
 	speed = maxf(speed - Config.GRAVITY * forward().y * dt, 0.0)
 
@@ -47,8 +50,10 @@ func apply_steering(cmd: InputCommand, dt: float) -> void:
 	axis = axis.normalized()
 	var applied := minf(angle, turn_rate() * dt)
 	basis = (Basis(axis, applied) * basis).orthonormalized()
+	## World-vertical component of this step's rotation: negative for a right turn.
 	last_yaw_rate = axis.y * applied / dt
 
+## Positive is a right bank. Zero when wings are level with the horizon.
 func bank_angle() -> float:
 	var fwd := forward()
 	var level_right := fwd.cross(Vector3.UP)
@@ -60,6 +65,7 @@ func bank_angle() -> float:
 	return atan2(up.dot(level_right), up.dot(level_up))
 
 func apply_bank(cmd: InputCommand, dt: float) -> void:
+	## Negated because a right turn yields a negative yaw rate and a positive rotation about forward banks right.
 	var target := clampf(-last_yaw_rate * Config.AUTO_BANK_GAIN,
 		-Config.MAX_BANK, Config.MAX_BANK)
 	# Manual roll folds into the target rather than being added separately: the
@@ -70,7 +76,7 @@ func apply_bank(cmd: InputCommand, dt: float) -> void:
 	var cap := Config.MANUAL_ROLL_RATE * dt
 	var delta := clampf((effective - bank_angle()) * (1.0 - exp(-Config.BANK_RESPONSE * dt)),
 		-cap, cap)
-	if absf(delta) < 1e-9:
+	if not is_finite(delta) or absf(delta) < 1e-9:
 		return
 	basis = (Basis(forward(), delta) * basis).orthonormalized()
 
@@ -81,12 +87,14 @@ func apply_stall_sag(dt: float) -> void:
 	var fwd := forward()
 	var level_right := fwd.cross(Vector3.UP)
 	if level_right.length_squared() < 1e-6:
-		return
+		level_right = basis.x
 	level_right = level_right.normalized()
 	# Negative rotation about the level-right axis pitches the nose down.
 	basis = (Basis(level_right, -Config.SAG_RATE * severity * dt) * basis).orthonormalized()
 
 func step(cmd: InputCommand, dt: float) -> void:
+	if not is_finite(dt) or dt <= 0.0:
+		return
 	apply_throttle(cmd, dt)
 	apply_engine_lag(dt)
 	apply_gravity(dt)
