@@ -61,6 +61,12 @@ done. If a run hangs, terminate it rather than leaving it resident:
 
 **Scratch files** go outside the project. Only the files listed below are created in it.
 
+**Godot uses 32-bit floats.** `Vector3` and `Basis` components are `real_t`, which is `float`, not
+`double`, in the standard build. When reasoning about epsilons and residuals, use float32 epsilon
+(~1.19e-7): a predicted residual of 6e-17 from double arithmetic was measured at 1.9e-15 in
+practice, 18 orders of magnitude out. It changed no pass/fail outcome, but it will if a tolerance
+is ever derived from the wrong precision model.
+
 **Visual verification.** Tasks that change what is on screen end with a manual checklist for the
 user, because the running game cannot be observed from the development environment. One avenue
 is still open: the desktop-control tooling matches *running* applications, and Godot was
@@ -427,7 +433,14 @@ const CAM_FOV_MAX := 85.0
 # --- Start state ---
 const START_ALTITUDE := 600.0
 const START_THROTTLE := 0.6
+const START_CLEARANCE := 250.0      # m of air guaranteed under a spawn
 ```
+
+**Measured terrain, for tuning these:** the island peaks at 656 m (not the 900 m ceiling), mean
+height 175 m, and 21% of the square is sea — which is exactly the corners outside the inscribed
+disc, so there is no inland water. `height_at(0, 0)` is exactly 450 m, because this noise returns
+0 at the origin. `START_CLEARANCE` exists because a fixed `START_ALTITUDE` of 600 m is below
+peaks that sit within 600 m of the origin.
 
 `scripts/input_command.gd`:
 
@@ -1234,20 +1247,37 @@ func _physics_process(delta: float) -> void:
 	if controller == null:
 		return
 	model.step(controller.command(self, delta), delta)
+	sync_transform()
+	if is_below_ground():
+		crashed.emit()
+
+## Extracted from _physics_process so it can be tested without a scene tree.
+func is_below_ground() -> bool:
+	if terrain == null:
+		return false
+	var ground := terrain.height_at(model.position.x, model.position.z)
+	return model.position.y < ground + Config.GROUND_CLEARANCE
+
+## The only place the node's transform is written. Guarded because reset() runs
+## before the aircraft enters the tree, and global_transform hard-fails there.
+func sync_transform() -> void:
+	if not is_inside_tree():
+		return
 	global_position = model.position
 	global_transform.basis = model.basis
-	if terrain == null:
-		return
-	var ground := terrain.height_at(model.position.x, model.position.z)
-	if model.position.y < ground + Config.GROUND_CLEARANCE:
-		crashed.emit()
 
 func reset(start_position: Vector3) -> void:
 	model = FlightModel.new()
 	model.position = start_position
-	global_position = start_position
-	global_transform.basis = Basis.IDENTITY
+	sync_transform()
 ```
+
+Two extractions, both earning their place. `is_below_ground()` is the only real logic in this
+task — it is what makes crashing work — and inline in `_physics_process` it would need a running
+scene tree to test. `sync_transform()` exists because `reset()` runs before the aircraft is in
+the tree, where `global_transform` hard-fails with an engine error on every respawn; routing both
+writes through one guarded method fixes that without leaving the two paths on different
+conventions.
 
 - [ ] **Step 2: Write `scripts/jet_visual.gd`**
 
@@ -1492,8 +1522,15 @@ func _build_environment() -> void:
 	world_environment.environment = environment
 	add_child(world_environment)
 
+## Spawns out over the sea, nose pointed inland, and clears whatever ground is
+## actually underneath. Measured in Task 9: terrain reaches 656 m within 580 m of
+## the origin while START_ALTITUDE is 600 m, so a fixed altitude over the middle of
+## the island can drop the player inside a mountain with three seconds to impact.
 func _restart() -> void:
-	aircraft.reset(Vector3(0.0, Config.START_ALTITUDE, Config.WORLD_SIZE * 0.25))
+	var x := 0.0
+	var z := Config.WORLD_SIZE * 0.4
+	var y := maxf(Config.START_ALTITUDE, terrain.height_at(x, z) + Config.START_CLEARANCE)
+	aircraft.reset(Vector3(x, y, z))
 	aircraft.model.throttle = Config.START_THROTTLE
 	aircraft.model.speed = lerpf(Config.MIN_SPEED, Config.MAX_SPEED, Config.START_THROTTLE)
 	camera.snap_to_target()
