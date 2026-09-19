@@ -61,6 +61,16 @@ done. If a run hangs, terminate it rather than leaving it resident:
 
 **Scratch files** go outside the project. Only the files listed below are created in it.
 
+**`--quit-after N` counts main-loop iterations, not physics ticks.** Measured headless on this
+machine, the main loop runs around 130 Hz while physics stays pinned at 60, so `--quit-after 600`
+is about 4.5 seconds of wall clock and only ~250 physics ticks. Budget roughly 2.6x the frame
+count you actually want simulated.
+
+**Headless has no pointer.** `get_mouse_position()` reports `(0, 0)` inside a 64x64 dummy
+viewport, which `PlayerController` reads as a near-corner aim command. A headless run driven by
+the real controller will therefore always spiral into the terrain; to measure flight, substitute
+a stub controller that returns a neutral `InputCommand`.
+
 **Godot uses 32-bit floats.** `Vector3` and `Basis` components are `real_t`, which is `float`, not
 `double`, in the standard build. When reasoning about epsilons and residuals, use float32 epsilon
 (~1.19e-7): a predicted residual of 6e-17 from double arithmetic was measured at 1.9e-15 in
@@ -1534,6 +1544,17 @@ func _restart() -> void:
 	aircraft.model.throttle = Config.START_THROTTLE
 	aircraft.model.speed = lerpf(Config.MIN_SPEED, Config.MAX_SPEED, Config.START_THROTTLE)
 	camera.snap_to_target()
+	_centre_pointer()
+
+## The pointer IS the control input, so a respawn must re-centre it. Without this
+## the aircraft starts in whatever bank the cursor's resting position commands —
+## on a desktop that means launching straight into a turn, and headless it produced
+## a reliable spiral into the terrain within 320 physics ticks.
+func _centre_pointer() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var size := get_viewport().get_visible_rect().size
+	Input.warp_mouse(size * 0.5)
 
 func _on_crashed() -> void:
 	_restart()
@@ -1629,12 +1650,21 @@ func _draw_reticle(centre: Vector2) -> void:
 	draw_line(centre + Vector2(-26.0, 0.0), centre + Vector2(-16.0, 0.0), HUD_COLOR, 2.0)
 	draw_line(centre + Vector2(16.0, 0.0), centre + Vector2(26.0, 0.0), HUD_COLOR, 2.0)
 
+## Nose up puts the real horizon BELOW the reticle, and screen Y grows downward,
+## so positive pitch gives a positive offset.
+static func horizon_offset(pitch: float, view_height: float) -> float:
+	return (pitch / deg_to_rad(45.0)) * (view_height * 0.35)
+
+## The horizon counter-rotates against the aircraft: a right bank drops the right
+## wing, so the horizon's right end rises on screen, which is negative Y.
+static func horizon_direction(bank: float) -> Vector2:
+	return Vector2(cos(bank), -sin(bank))
+
 func _draw_horizon(centre: Vector2) -> void:
 	var fwd := target.model.forward()
 	var pitch := asin(clampf(fwd.y, -1.0, 1.0))
-	var bank := target.model.bank_angle()
-	var offset := -pitch / deg_to_rad(45.0) * (size.y * 0.35)
-	var direction := Vector2(cos(bank), sin(bank))
+	var offset := horizon_offset(pitch, size.y)
+	var direction := horizon_direction(target.model.bank_angle())
 	var mid := centre + Vector2(0.0, offset)
 	var half := direction * (size.x * 0.22)
 	draw_line(mid - half, mid - half * 0.25, HUD_COLOR, 2.0)
