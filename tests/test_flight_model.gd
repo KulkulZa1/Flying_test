@@ -166,3 +166,15 @@ func test_manual_roll_rolls() -> void:
 	cmd.roll = 1.0
 	fm.apply_bank(cmd, 0.1)
 	check(fm.bank_angle() > 0.0, "positive roll input banks right")
+
+func test_stall_drops_the_nose() -> void:
+	var fm := FlightModel.new()
+	fm.speed = Config.STALL_SPEED * 0.5
+	fm.apply_stall_sag(0.5)
+	check(fm.forward().y < -0.01, "below stall speed the nose pitches down")
+
+func test_no_sag_above_stall_speed() -> void:
+	var fm := FlightModel.new()
+	fm.speed = Config.STALL_SPEED + 1.0
+	fm.apply_stall_sag(0.5)
+	check_approx(fm.forward().y, 0.0, 1e-9, "above stall speed the nose is untouched")

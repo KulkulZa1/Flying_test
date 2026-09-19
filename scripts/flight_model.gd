@@ -68,3 +68,15 @@ func apply_bank(cmd: InputCommand, dt: float) -> void:
 	if absf(rate) < 1e-9:
 		return
 	basis = (Basis(forward(), rate * dt) * basis).orthonormalized()
+
+func apply_stall_sag(dt: float) -> void:
+	if speed >= Config.STALL_SPEED:
+		return
+	var severity := 1.0 - speed / Config.STALL_SPEED
+	var fwd := forward()
+	var level_right := fwd.cross(Vector3.UP)
+	if level_right.length_squared() < 1e-6:
+		return
+	level_right = level_right.normalized()
+	# Negative rotation about the level-right axis pitches the nose down.
+	basis = (Basis(level_right, -Config.SAG_RATE * severity * dt) * basis).orthonormalized()
