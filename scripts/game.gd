@@ -58,15 +58,14 @@ func _build_environment() -> void:
 	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	environment.fog_enabled = true
-	environment.fog_density = 0.0004
+	environment.fog_density = 0.0001
+	environment.fog_sky_affect = 0.0
 	var world_environment := WorldEnvironment.new()
 	world_environment.environment = environment
 	add_child(world_environment)
 
 func _restart() -> void:
 	aircraft.reset(spawn_point(terrain))
-	aircraft.model.throttle = Config.START_THROTTLE
-	aircraft.model.speed = lerpf(Config.MIN_SPEED, Config.MAX_SPEED, Config.START_THROTTLE)
 	camera.snap_to_target()
 	_centre_pointer()
 

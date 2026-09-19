@@ -38,8 +38,8 @@ const CAM_DIST := 18.0
 const CAM_HEIGHT := 6.0
 const CAM_LAG := 0.12               # seconds
 const CAM_LOOK_AHEAD := 40.0        # m ahead of the nose
-const CAM_FOV_MIN := 70.0
-const CAM_FOV_MAX := 85.0
+const CAM_FOV_MIN := 60.0           # vertical; about 91 degrees horizontal at 16:9
+const CAM_FOV_MAX := 75.0           # vertical; about 107 degrees horizontal at 16:9
 
 # --- Start state ---
 const START_ALTITUDE := 600.0

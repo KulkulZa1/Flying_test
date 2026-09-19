@@ -62,6 +62,8 @@ func _add_tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
 		st.add_vertex(v)
 
 func _color_for_height(h: float) -> Color:
+	if h < 1.0:
+		return Color(0.10, 0.24, 0.40)              # shallows, matching the sea plane
 	var t := h / Config.TERRAIN_MAX_HEIGHT
 	if t < 0.05:
 		return Color(0.76, 0.70, 0.50)              # sand
@@ -81,4 +83,5 @@ func build_sea() -> MeshInstance3D:
 	plane.material = material
 	var instance := MeshInstance3D.new()
 	instance.mesh = plane
+	instance.position.y = -0.5
 	return instance
