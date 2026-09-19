@@ -2011,7 +2011,15 @@ Phase 1 is done, and Phase 2 may start, only when every box below is ticked.
 bash tests/run.sh; echo "exit=$?"
 ```
 
-Expected: `failures: 0`, `exit=0`, covering config, flight model, terrain and boundary.
+Expected: `checks: 129  failures: 0`, `exit=0`, across ten suites — config, flight model, terrain,
+aircraft, camera, controls, game, HUD, touch and boundary.
+
+**What the suite does and does not cover.** Every check is on a pure function or a static helper.
+Nothing exercises `_process`, `_physics_process`, `_draw` or `_input`. A final review found the
+game unflyable while 119 of these checks were green — the flight model was provably correct and
+the controller fed it aim in the wrong frame. The test that finally caught it,
+`test_a_held_turn_holds_altitude`, is the one that drives the real controller through the real
+model for thirty seconds. Prefer that shape for anything added in Phase 2.
 
 - [ ] **Step 2: Manual flight checklist**
 
