@@ -142,7 +142,14 @@ State: `position: Vector3`, `basis: Basis`, `speed: float`, `throttle: float`.
 ### Framerate independence
 
 All smoothing uses `1 - exp(-k * dt)`, never `k * dt`. A 120 Hz desktop and a 45 Hz phone must
-produce the same trajectory for the same inputs. This is pinned by a test, not by inspection.
+produce the same trajectory for the same inputs. This is pinned by a test, not by inspection —
+specifically by a test on **raw speed** after one second of spool-up, not by a trajectory
+comparison.
+
+That distinction was established by measurement, not assumed. A trajectory comparison is too
+insensitive to serve as the guard: substituting the naive `k * dt` form moves the 3-second
+trajectory from 0.076% to 0.106% of path length, which any reasonable position tolerance would
+pass. The speed test fails it outright (123.27 vs 123.60, tolerance 0.01).
 
 ### Starting tunables (`config.gd`)
 
@@ -155,6 +162,24 @@ MAX_TURN_RATE 1.8 rad/s   BEST_TURN_SPEED 90 m/s
 AUTO_BANK_GAIN 2.5        MANUAL_ROLL_RATE 2.5 rad/s      SAG_RATE 1.2 rad/s
 AIM_CONE_DEG 35           GROUND_CLEARANCE 3 m
 ```
+
+### Which levers actually move which behaviour
+
+Measured on the implemented model, so that tuning by feel is not tuning blind.
+
+`STALL_SPEED` sits deliberately **above** `MIN_SPEED`. That means idle throttle targets a speed
+below stall, keeping the plane in permanent gentle sag — which is what turns closing the throttle
+into a glide rather than a hover. The glide converges, without oscillation, to **-27.1° pitch at
+45 m/s**, losing 561 m in 30 seconds.
+
+That equilibrium slope is set by `STALL_SPEED`, `MIN_SPEED`, `ENGINE_RESPONSE` and `GRAVITY`
+together. **`SAG_RATE` does not appear in it at all** — it governs only how briskly the plane
+rotates into the glide (about 13.6 s at 1.2 rad/s), not the angle it settles at. Turning
+`SAG_RATE` up to make gliding steeper will not work; it only makes the transition quicker.
+
+Stall recovery at full throttle is likewise dominated by engine spool-up, not aerodynamics: the
+engine alone crosses `STALL_SPEED` in roughly 17 frames, so `SAG_RATE` and `STALL_SPEED` barely
+influence how a power-on stall resolves.
 
 ---
 
@@ -263,9 +288,12 @@ implementation rather than assumed.
 Covered headless:
 
 - **Flight model** — speed is never negative and never exceeds `MAX_SPEED`; turn rate never
-  exceeds the authority curve; level flight with neutral input holds altitude within tolerance;
-  climbing bleeds speed and diving gains it; **identical trajectory at dt=1/120 and dt=1/45**;
-  recovery from below stall speed terminates
+  exceeds the authority curve; cruise flight with neutral input holds altitude without drift;
+  climbing bleeds speed and diving gains it; **one second of spool-up gives the same speed at
+  dt=1/120 and dt=1/45** (the real framerate guard); trajectory heading and position agree across
+  timestep; peak bank stays under `MAX_BANK`; recovery from below stall speed terminates,
+  including from a near-vertical zoom climb; idle throttle settles into a descending glide
+  rather than diverging
 - **AI** — each state transition fires on its documented condition; no state can deadlock
 - **Waves** — count and jitter curves match the specified formulas at wave boundaries
 - **Scoring** — combo chains inside the window, breaks outside it, caps at x4

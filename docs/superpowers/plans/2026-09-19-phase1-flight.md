@@ -737,6 +737,18 @@ func apply_steering(cmd: InputCommand, dt: float) -> void:
 	last_yaw_rate = axis.y * applied / dt
 ```
 
+**Verified empirically during implementation:** a rightward turn (`aim_dir = Vector3.RIGHT`) gives
+`last_yaw_rate = -1.8`. Task 6's auto-bank sign depends on that being negative.
+
+**Known-weak assertion.** `test_steering_ignores_degenerate_aim`'s `is_finite()` check passes
+whether or not `not aim.is_finite()` is present in the guard, so it does not prove the guard is
+load-bearing. `Vector3(NAN, 0, 0).length_squared()` is NaN and `NaN < 1e-8` is false, so a NaN
+aim slips past the length check — but Godot 4.7.2's `Vector3::normalize()` substitutes
+`(0, 0, 0)` with a warning, `angle_to` then returns 0, and the `angle < 1e-5` early return fires
+before `basis` is touched. The guard is kept regardless: it avoids per-frame warning spam on
+stuck bad input, and it avoids depending on an engine internal that is not part of GDScript's
+documented contract. There is no GDScript-visible way to make this test discriminate.
+
 - [ ] **Step 4: Run to verify it passes**
 
 Expected: `failures: 0`, `exit=0`.
@@ -797,10 +809,13 @@ func test_bank_is_clamped() -> void:
 	fm.speed = Config.BEST_TURN_SPEED
 	var cmd := InputCommand.new()
 	cmd.aim_dir = Vector3.RIGHT
+	var peak := 0.0
 	for i in 600:
 		fm.apply_steering(cmd, 1.0 / 60.0)
 		fm.apply_bank(cmd, 1.0 / 60.0)
-	check(absf(fm.bank_angle()) <= Config.MAX_BANK + 0.05, "bank never exceeds MAX_BANK")
+		peak = maxf(peak, absf(fm.bank_angle()))
+	check(peak > 0.5, "the turn must actually bank substantially, or this test proves nothing")
+	check(peak <= Config.MAX_BANK + 0.05, "bank never exceeds MAX_BANK")
 
 func test_manual_roll_rolls() -> void:
 	var fm := FlightModel.new()
@@ -839,6 +854,13 @@ func apply_bank(cmd: InputCommand, dt: float) -> void:
 		return
 	basis = (Basis(forward(), rate * dt) * basis).orthonormalized()
 ```
+
+**Why `test_bank_is_clamped` tracks a peak.** Asserting on the bank angle after the loop tests
+nothing: by frame 600 the nose has converged on the aim direction, yaw rate is zero, and the
+bank has decayed to roughly `3e-10` — measured, not theorised. That compares noise against a
+1.35 rad bound and never observes the clamp. Tracking the peak tests the named property, and the
+`peak > 0.5` assertion makes the test fail loudly rather than silently degrading back into a
+trivial pass if the dynamics change in a later task.
 
 - [ ] **Step 4: Run to verify it passes**
 
@@ -942,8 +964,20 @@ git commit -m "Add forgiving stall sag below minimum flying speed"
 On tolerance: the spec asked for an *identical* trajectory across timesteps. That is not
 achievable — a first-order integrator with a clamped turn rate takes a marginally different path
 at a different `dt`. The test instead pins **heading** to near-exact agreement and **position**
-to within 2% of distance travelled. A `k*dt` smoothing bug, which is what this test exists to
-catch, diverges by far more than 2%.
+to within 2% of distance travelled.
+
+**Measured, correcting an earlier claim in this plan.** It was asserted here that a `k*dt`
+smoothing bug "diverges by far more than 2%". That is false. Measured on the real
+implementation: baseline divergence is **0.076%** of a 345 m path (0.26 m) with a heading
+difference of 1.2e-6 rad. Under the naive `k*dt` sabotage it rises only to **0.106%** — nowhere
+near the 2% bound, and the trajectory test passes.
+
+The guard that actually catches a `k*dt` regression is the narrower
+`test_engine_lag_is_framerate_independent` in Task 3, which asserts on raw speed with a 0.01
+tolerance and fails loudly (123.27 vs 123.60). The trajectory test still earns its place — it
+verifies heading and position agree across timestep, which nothing else checks — but it is not
+the `k*dt` guard, and should not be trusted as one. Do not delete the Task 3 test on the
+assumption that this one subsumes it.
 
 **Files:**
 - Modify: `scripts/flight_model.gd`, `tests/test_flight_model.gd`
