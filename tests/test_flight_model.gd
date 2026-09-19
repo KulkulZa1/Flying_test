@@ -346,3 +346,18 @@ func test_malformed_input_cannot_collapse_the_basis() -> void:
 	check(absf(fm.basis.determinant() - 1.0) < 1e-4, "a NaN command must not collapse the basis")
 	check(is_finite(fm.speed) and fm.speed >= 0.0, "a NaN command must not poison speed")
 	check(fm.position.is_finite(), "a NaN command must not poison position")
+
+func test_exactly_vertical_stall_tips_over() -> void:
+	var fm := FlightModel.new()
+	fm.speed = 5.0
+	fm.throttle = 0.0
+	fm.basis = Basis(Vector3.RIGHT, deg_to_rad(90.0))  # level_right degenerates here
+	var cmd := InputCommand.new()
+	var lowest := fm.forward().y
+	for i in 3600:  # one minute
+		cmd.aim_dir = fm.forward()
+		fm.step(cmd, 1.0 / 60.0)
+		lowest = minf(lowest, fm.forward().y)
+	check(lowest < 0.99, "an exactly vertical nose must tip over rather than hang forever")
+	check(absf(fm.basis.determinant() - 1.0) < 1e-4,
+		"the vertical fallback must not corrupt the basis")
