@@ -72,3 +72,53 @@ func test_speed_never_goes_negative() -> void:
 	for i in 100:
 		fm.apply_gravity(0.1)
 	check(fm.speed >= 0.0, "speed must never go negative")
+
+func test_turn_rate_peaks_at_best_turn_speed() -> void:
+	var fm := FlightModel.new()
+	fm.speed = Config.BEST_TURN_SPEED
+	check_approx(fm.turn_rate(), Config.MAX_TURN_RATE, 1e-6,
+		"full authority at BEST_TURN_SPEED")
+
+func test_turn_rate_falls_off_when_slow_but_never_to_zero() -> void:
+	var fm := FlightModel.new()
+	fm.speed = 1.0
+	check(fm.turn_rate() < Config.MAX_TURN_RATE, "slow flight is mushy")
+	check_approx(fm.turn_rate(), Config.MAX_TURN_RATE * Config.MIN_TURN_SCALE, 1e-6,
+		"authority floors at MIN_TURN_SCALE")
+
+func test_turn_rate_falls_off_when_fast() -> void:
+	var fm := FlightModel.new()
+	fm.speed = Config.MAX_SPEED
+	check(fm.turn_rate() < Config.MAX_TURN_RATE, "high speed stiffens the turn")
+	check(fm.turn_rate() >= Config.MAX_TURN_RATE * Config.HIGH_SPEED_TURN_FLOOR - 1e-6,
+		"authority floors at HIGH_SPEED_TURN_FLOOR")
+
+func test_steering_never_exceeds_turn_rate() -> void:
+	var fm := FlightModel.new()
+	fm.speed = Config.BEST_TURN_SPEED
+	var before := fm.forward()
+	var cmd := InputCommand.new()
+	cmd.aim_dir = Vector3.RIGHT
+	fm.apply_steering(cmd, 0.1)
+	check(before.angle_to(fm.forward()) <= fm.turn_rate() * 0.1 + 1e-5,
+		"one step turns at most turn_rate * dt")
+
+func test_steering_converges_on_aim() -> void:
+	var fm := FlightModel.new()
+	fm.speed = Config.BEST_TURN_SPEED
+	var cmd := InputCommand.new()
+	cmd.aim_dir = Vector3(1.0, 0.0, -1.0).normalized()
+	for i in 200:
+		fm.apply_steering(cmd, 1.0 / 60.0)
+	check(fm.forward().angle_to(cmd.aim_dir) < 0.01, "the nose reaches the aim direction")
+
+func test_steering_ignores_degenerate_aim() -> void:
+	var fm := FlightModel.new()
+	var before := fm.forward()
+	var cmd := InputCommand.new()
+	cmd.aim_dir = Vector3.ZERO
+	fm.apply_steering(cmd, 0.1)
+	check_approx(before.angle_to(fm.forward()), 0.0, 1e-9, "a zero aim vector is ignored")
+	cmd.aim_dir = Vector3(NAN, 0.0, 0.0)
+	fm.apply_steering(cmd, 0.1)
+	check(fm.forward().is_finite(), "a non-finite aim vector must not corrupt the basis")

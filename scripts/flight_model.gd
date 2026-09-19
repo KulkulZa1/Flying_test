@@ -21,3 +21,30 @@ func apply_engine_lag(dt: float) -> void:
 
 func apply_gravity(dt: float) -> void:
 	speed = maxf(speed - Config.GRAVITY * forward().y * dt, 0.0)
+
+func turn_rate() -> float:
+	var ratio := speed / Config.BEST_TURN_SPEED
+	var scale: float
+	if ratio <= 1.0:
+		scale = clampf(ratio, Config.MIN_TURN_SCALE, 1.0)
+	else:
+		scale = clampf(1.0 / ratio, Config.HIGH_SPEED_TURN_FLOOR, 1.0)
+	return Config.MAX_TURN_RATE * scale
+
+func apply_steering(cmd: InputCommand, dt: float) -> void:
+	last_yaw_rate = 0.0
+	var aim := cmd.aim_dir
+	if not aim.is_finite() or aim.length_squared() < 1e-8:
+		return
+	aim = aim.normalized()
+	var fwd := forward()
+	var angle := fwd.angle_to(aim)
+	if angle < 1e-5:
+		return
+	var axis := fwd.cross(aim)
+	if axis.length_squared() < 1e-12:
+		return  # exactly reversed: no unique rotation axis
+	axis = axis.normalized()
+	var applied := minf(angle, turn_rate() * dt)
+	basis = (Basis(axis, applied) * basis).orthonormalized()
+	last_yaw_rate = axis.y * applied / dt
