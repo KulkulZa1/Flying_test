@@ -29,6 +29,20 @@ cd /d/toy_project/Flying
 "$GODOT" --headless --path . --script res://tests/run_tests.gd; echo "exit=$?"
 ```
 
+**Import first, after adding any new `class_name` script.** Godot resolves `class_name` types
+from a registry built during import. A cold run, or the first run after a new class is added,
+fails with `Parse Error: Could not find type "X" in the current scope` until you run:
+
+```bash
+"$GODOT" --headless --path . --import
+```
+
+This is not a fluke — expect it on every fresh clone and whenever a task introduces a new class.
+
+**`.uid` sidecars.** Godot 4.4+ writes a `<script>.gd.uid` beside every script during import.
+They are the stable resource-reference mechanism and **should be committed** (unlike `.godot/`,
+which is ignored). Every task adding a `.gd` file produces one; that is expected, not stray.
+
 **Commits.** Every commit message ends with the trailer:
 
 ```
@@ -40,6 +54,14 @@ done. If a run hangs, terminate it rather than leaving it resident:
 `powershell -c "Get-Process Godot* -ErrorAction SilentlyContinue | Stop-Process -Force"`.
 
 **Scratch files** go outside the project. Only the files listed below are created in it.
+
+**Visual verification.** Tasks that change what is on screen end with a manual checklist for the
+user, because the running game cannot be observed from the development environment. One avenue
+is still open: the desktop-control tooling matches *running* applications, and Godot was
+installed as a portable executable with no Start-menu entry, so an access request made while the
+game is running may succeed where one made beforehand cannot. Retry it at Task 10, once there is
+a window to attach to. If it works, the checklists in Tasks 13, 14 and 17 shrink accordingly; if
+it does not, they stand as written.
 
 ### Two deliberate deviations from the spec
 
@@ -145,7 +167,11 @@ func check_approx(actual: float, expected: float, tol: float, message: String) -
 	runner.check_approx(actual, expected, tol, message)
 ```
 
-`tests/run_tests.gd`:
+`tests/run_tests.gd` — this is the shipped version, hardened after code review. The naive
+shape (load, construct and loop all inline in `_initialize()`) **hangs the headless process
+forever** when a `SUITES` path is wrong: `load()` returns null, `script.new()` errors directly
+in `_initialize()`'s body, and `quit()` is never reached. Since `SUITES` is hand-edited in
+nearly every later task, that is a routine mistake, not an exotic one.
 
 ```gdscript
 extends SceneTree
@@ -156,32 +182,54 @@ const SUITES := [
 
 var _checks := 0
 var _failures: Array[String] = []
+var _suites_completed := 0
+var _current := ""
 
 func _initialize() -> void:
 	for path in SUITES:
-		var script: GDScript = load(path)
-		var suite: TestCase = script.new()
-		suite.runner = self
-		var seen := {}
-		for method in suite.get_method_list():
-			var name: String = method.name
-			if name.begins_with("test_") and not seen.has(name):
-				seen[name] = true
-				suite.call(name)
+		_run_suite(path)
+	if _suites_completed != SUITES.size():
+		_failures.append("only %d of %d suites ran to completion - scan the output above for SCRIPT ERROR"
+			% [_suites_completed, SUITES.size()])
 	print("checks: %d  failures: %d" % [_checks, _failures.size()])
 	for message in _failures:
 		print("FAIL: ", message)
 	quit(1 if _failures.size() > 0 else 0)
 
+## Runs one suite. GDScript has no exception handling, but a runtime error
+## unwinds only the function it occurs in. Keeping load/new/runner-assignment
+## in here means such an error returns control to _initialize()'s loop instead
+## of aborting it, so quit() is always reached and the process can never hang.
+## _suites_completed is incremented only on a clean finish.
+func _run_suite(path: String) -> void:
+	var script: GDScript = load(path)
+	var suite: TestCase = script.new()
+	suite.runner = self
+	var seen := {}
+	for method in suite.get_method_list():
+		var name: String = method.name
+		if name.begins_with("test_") and not seen.has(name):
+			seen[name] = true
+			_current = "%s#%s" % [path.get_file(), name]
+			var before := _checks
+			suite.call(name)
+			if _checks == before:
+				_failures.append("[%s] recorded no checks - it probably errored before asserting" % _current)
+	_suites_completed += 1
+
 func check(condition: bool, message: String) -> void:
 	_checks += 1
 	if not condition:
-		_failures.append(message)
+		_failures.append("[%s] %s" % [_current, message])
 
 func check_approx(actual: float, expected: float, tol: float, message: String) -> void:
-	check(absf(actual - expected) <= tol,
+	check(actual == expected or absf(actual - expected) <= tol,
 		"%s (got %.6f, expected %.6f +/- %.6f)" % [message, actual, expected, tol])
 ```
+
+**Known limitation, by design.** A test that errors *after* some checks have passed still
+reports those checks as passes. GDScript has no exception handling, so this is not fixable
+within this design. Always scan output for `SCRIPT ERROR`, not just the summary line.
 
 `tests/test_smoke.gd`:
 
