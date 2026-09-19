@@ -245,3 +245,15 @@ func test_state_stays_finite_under_long_simulation() -> void:
 	check(fm.position.is_finite(), "position stays finite")
 	check(fm.basis.is_finite(), "basis stays finite")
 	check(fm.speed >= 0.0 and fm.speed <= Config.MAX_SPEED + 1.0, "speed stays in band")
+
+func test_idle_throttle_settles_into_a_glide() -> void:
+	var fm := FlightModel.new()
+	fm.speed = Config.MIN_SPEED
+	fm.throttle = 0.0
+	var cmd := InputCommand.new()
+	for i in 1800:  # 30 seconds
+		cmd.aim_dir = fm.forward()
+		fm.step(cmd, 1.0 / 60.0)
+	check(fm.position.y < 0.0, "idle throttle descends rather than holding altitude")
+	check(fm.speed > 0.0 and fm.speed <= Config.MAX_SPEED + 1.0, "glide speed stays in band")
+	check(fm.basis.is_finite(), "a long glide does not corrupt the basis")
