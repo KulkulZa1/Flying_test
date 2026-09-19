@@ -20,6 +20,7 @@ const SUITES := [
 	"res://tests/test_waves.gd",
 	"res://tests/test_scoring.gd",
 	"res://tests/test_hud_markers.gd",
+	"res://tests/test_combat_integration.gd",
 ]
 
 var _checks := 0
