@@ -58,7 +58,7 @@ const BULLET_DAMAGE := 8.0
 const BULLET_LIFETIME := 2.5        # s
 const HIT_RADIUS := 6.0             # m, roughly the jet's span
 const MUZZLE_FORWARD := 5.0         # m ahead of the model origin
-const PLAYER_HP := 100.0
+const PLAYER_HP := 180.0
 const ENEMY_HP := 30.0
 
 # --- AI ---
@@ -73,7 +73,7 @@ const AIM_JITTER_END_DEG := 2.0
 
 # --- Waves ---
 const WAVE_GAP := 3.0               # s between waves
-const MAX_WAVE_SIZE := 6
+const MAX_WAVE_SIZE := 5
 const JITTER_RAMP_WAVES := 10
 const SPAWN_RADIUS := 2200.0        # m from the player
 const SPAWN_ALTITUDE := 700.0       # m

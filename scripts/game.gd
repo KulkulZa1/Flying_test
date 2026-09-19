@@ -30,7 +30,9 @@ func _ready() -> void:
 	aircraft = preload("res://scenes/aircraft.tscn").instantiate()
 	aircraft.controller = controller
 	aircraft.terrain = terrain
-	aircraft.crashed.connect(_on_crashed)
+	# Hitting the ground ends the run like any other death. Restarting on a crash
+	# made flying into the sea a free full-heal that kept your score and wave.
+	aircraft.crashed.connect(_on_player_died)
 	add_child(aircraft)
 	camera = ChaseCamera.new()
 	camera.target = aircraft
@@ -89,9 +91,6 @@ func _centre_pointer() -> void:
 	var size := get_viewport().get_visible_rect().size
 	Input.warp_mouse(size * 0.5)
 
-func _on_crashed() -> void:
-	_restart()
-
 ## Every aircraft ticks its own controller and weapon, so `fired` is read here
 ## rather than recomputed. Calling command() again would run each AI state
 ## machine twice per tick and get a different answer the second time. Godot runs
@@ -136,10 +135,10 @@ func _spawn_wave() -> void:
 		pilot.jitter_degrees = WaveDirector.jitter_for(wave)
 		enemy.controller = pilot
 		enemy.died.connect(_on_enemy_died.bind(enemy))
+		enemy.crashed.connect(enemy.take_damage.bind(enemy.max_hp))
 		add_child(enemy)
 		enemy.reset(WaveDirector.spawn_point(aircraft.model.position, i, count))
 		enemies.append(enemy)
-	hud.enemies = enemies
 
 func _on_enemy_died(enemy: Aircraft) -> void:
 	scoring.register_kill()
@@ -148,10 +147,9 @@ func _on_enemy_died(enemy: Aircraft) -> void:
 
 func _on_player_died() -> void:
 	scoring.save_high_score()
-	scoring.score = 0
+	scoring.reset_run()
 	wave = 0
 	_restart()
-	_spawn_wave()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:

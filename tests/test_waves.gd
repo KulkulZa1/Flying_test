@@ -62,3 +62,14 @@ func test_a_single_enemy_still_gets_a_valid_spawn() -> void:
 	check(point.is_finite(), "a one-enemy wave produces a finite spawn point")
 	check_approx(Vector2(point.x, point.z).length(), Config.SPAWN_RADIUS, 1.0,
 		"and still rings the player")
+
+func test_no_spawn_lands_in_the_players_lap() -> void:
+	var failure := ""
+	for distance in [0.0, 1200.0, 2400.0, 3200.0, 3600.0, 3800.0]:
+		var centre := Vector3(distance, 600.0, 0.0)
+		for i in 6:
+			var point := WaveDirector.spawn_point(centre, i, 6)
+			var gap := Vector2(point.x - centre.x, point.z - centre.z).length()
+			if gap < Config.MIN_SEPARATION * 2.0:
+				failure = "at %.0f m out, spawn %d landed %.0f m away" % [distance, i, gap]
+	check(failure == "", "no spawn lands on top of the player: " + failure)

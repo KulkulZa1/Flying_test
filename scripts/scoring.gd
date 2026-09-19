@@ -32,6 +32,14 @@ func register_kill() -> void:
 	_chaining = true
 	_since_last_kill = 0.0
 
+## Ends the run's chain as well as its score: a multiplier that outlived a death
+## made the first kill of a new life worth triple.
+func reset_run() -> void:
+	score = 0
+	multiplier = 1.0
+	_chaining = false
+	_since_last_kill = 0.0
+
 func save_high_score() -> void:
 	if score <= high_score:
 		return

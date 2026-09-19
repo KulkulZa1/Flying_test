@@ -124,3 +124,54 @@ func test_a_dogfight_stays_airborne_and_bounded() -> void:
 	check(absf(hunter.model.basis.determinant() - 1.0) < 1e-4, "and stays well-conditioned")
 	hunter.free()
 	prey.free()
+
+func test_jitter_actually_perturbs_the_aim() -> void:
+	var prey := _craft_at(Vector3(250.0, 700.0, -900.0))
+	var hunter := _craft_at(Vector3(0.0, 600.0, 0.0))
+	var clean := AIPilot.new()
+	clean.jitter_degrees = 0.0
+	clean.target = prey
+	var jittery := AIPilot.new()
+	jittery.jitter_degrees = Config.AIM_JITTER_START_DEG
+	jittery.target = prey
+	var widest := 0.0
+	for i in 600:  # ten seconds, well past any zero crossing
+		var a := clean.command(hunter, 1.0 / 60.0).aim_dir
+		var b := jittery.command(hunter, 1.0 / 60.0).aim_dir
+		widest = maxf(widest, rad_to_deg(a.angle_to(b)))
+	check(widest > Config.AIM_JITTER_END_DEG,
+		"jitter must measurably perturb aim, or enemies are perfect marksmen")
+	hunter.free()
+	prey.free()
+
+func test_the_ai_leads_a_crossing_target() -> void:
+	var pilot := AIPilot.new()
+	pilot.jitter_degrees = 0.0
+	var hunter := _craft_at(Vector3(0.0, 700.0, 0.0))
+	var prey := _craft_at(Vector3(0.0, 700.0, -500.0))
+	prey.model.basis = Basis(Vector3.UP, -PI * 0.5)  # prey crossing to the right
+	prey.model.speed = Config.MAX_SPEED
+	pilot.target = prey
+	var aim := pilot.command(hunter, 1.0 / 60.0).aim_dir
+	var straight := (prey.model.position - hunter.model.position).normalized()
+	check(aim.angle_to(straight) > deg_to_rad(2.0),
+		"the AI must aim ahead of a crossing target, not straight at it")
+	hunter.free()
+	prey.free()
+
+func test_pilots_do_not_jitter_in_lockstep() -> void:
+	var prey := _craft_at(Vector3(250.0, 700.0, -900.0))
+	var hunter := _craft_at(Vector3(0.0, 600.0, 0.0))
+	var a := AIPilot.new()
+	var b := AIPilot.new()
+	a.target = prey
+	b.target = prey
+	var widest := 0.0
+	for i in 600:
+		var aim_a := a.command(hunter, 1.0 / 60.0).aim_dir
+		var aim_b := b.command(hunter, 1.0 / 60.0).aim_dir
+		widest = maxf(widest, rad_to_deg(aim_a.angle_to(aim_b)))
+	check(widest > 1.0,
+		"two pilots must not share an aim error, or a whole wave shoots as one gun")
+	hunter.free()
+	prey.free()

@@ -40,3 +40,14 @@ func test_tapping_fire_cannot_beat_the_rate_limit() -> void:
 			rounds += 1
 	check(rounds <= int(Config.FIRE_RATE * 10.0) + 2,
 		"tapping the trigger cannot exceed the configured rate")
+
+func test_a_pause_does_not_bank_a_burst() -> void:
+	var weapon := Weapon.new()
+	for i in 120:  # two seconds with the trigger blocked
+		weapon.try_fire(1.0 / 60.0, false)
+	var rounds := 0
+	for i in 60:  # then one second of held fire
+		if weapon.try_fire(1.0 / 60.0, true):
+			rounds += 1
+	check(rounds <= int(Config.FIRE_RATE) + 2,
+		"an idle period must not bank rounds into the next burst")

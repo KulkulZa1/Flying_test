@@ -8,7 +8,8 @@ var state := State.PURSUE
 var state_timer := 0.0
 var jitter_degrees := Config.AIM_JITTER_START_DEG
 
-var _jitter_phase := 0.0
+var _jitter_phase := randf() * TAU
+var _jitter_rate := randf_range(0.7, 1.3)
 
 ## Aim is a direction to a point in the world. There is deliberately no body
 ## frame here: expressing aim relative to the aircraft's own basis is exactly
@@ -77,7 +78,7 @@ func _apply_jitter(aim: Vector3, dt: float) -> Vector3:
 	if axis.length_squared() < 1e-6:
 		axis = Vector3.RIGHT
 	axis = axis.normalized().rotated(aim, _jitter_phase * 1.7)
-	return aim.rotated(axis, deg_to_rad(jitter_degrees) * sin(_jitter_phase * 0.9))
+	return aim.rotated(axis, deg_to_rad(jitter_degrees) * sin(_jitter_phase * _jitter_rate))
 
 func _break_away(aircraft: Aircraft, to_target: Vector3) -> Vector3:
 	var away := -to_target
