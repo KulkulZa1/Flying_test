@@ -70,3 +70,10 @@ const REPOSITION_ALTITUDE := 450.0  # m, floor the AI climbs back to
 const AI_THROTTLE := 0.85
 const AIM_JITTER_START_DEG := 8.0
 const AIM_JITTER_END_DEG := 2.0
+
+# --- Waves ---
+const WAVE_GAP := 3.0               # s between waves
+const MAX_WAVE_SIZE := 6
+const JITTER_RAMP_WAVES := 10
+const SPAWN_RADIUS := 2200.0        # m from the player
+const SPAWN_ALTITUDE := 700.0       # m
