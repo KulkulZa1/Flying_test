@@ -310,3 +310,15 @@ func test_manual_roll_bank_is_bounded() -> void:
 		peak = maxf(peak, absf(fm.bank_angle()))
 	check(peak <= Config.MAX_BANK + Config.MANUAL_ROLL_RATE / Config.BANK_RESPONSE + 0.1,
 		"manual roll adds at most MANUAL_ROLL_RATE / BANK_RESPONSE beyond MAX_BANK")
+
+func test_manual_roll_equilibrium_is_framerate_independent() -> void:
+	var fast := FlightModel.new()
+	var slow := FlightModel.new()
+	var cmd := InputCommand.new()
+	cmd.roll = 1.0
+	for i in 600:
+		fast.apply_bank(cmd, 1.0 / 120.0)  # five seconds
+	for i in 200:
+		slow.apply_bank(cmd, 1.0 / 40.0)   # five seconds
+	check_approx(fast.bank_angle(), slow.bank_angle(), 0.01,
+		"the manual-roll equilibrium must not depend on timestep")

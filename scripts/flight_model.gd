@@ -62,10 +62,14 @@ func bank_angle() -> float:
 func apply_bank(cmd: InputCommand, dt: float) -> void:
 	var target := clampf(-last_yaw_rate * Config.AUTO_BANK_GAIN,
 		-Config.MAX_BANK, Config.MAX_BANK)
+	# Manual roll folds into the target rather than being added separately: the
+	# ODE bank' = roll*MANUAL_ROLL_RATE + BANK_RESPONSE*(target - bank) is an
+	# exponential approach to target + roll*MANUAL_ROLL_RATE/BANK_RESPONSE, so
+	# discretising it this way is exact at any timestep.
+	var effective := target + cmd.roll * Config.MANUAL_ROLL_RATE / Config.BANK_RESPONSE
 	var cap := Config.MANUAL_ROLL_RATE * dt
-	var correction := clampf((target - bank_angle()) * (1.0 - exp(-Config.BANK_RESPONSE * dt)),
+	var delta := clampf((effective - bank_angle()) * (1.0 - exp(-Config.BANK_RESPONSE * dt)),
 		-cap, cap)
-	var delta := cmd.roll * Config.MANUAL_ROLL_RATE * dt + correction
 	if absf(delta) < 1e-9:
 		return
 	basis = (Basis(forward(), delta) * basis).orthonormalized()
