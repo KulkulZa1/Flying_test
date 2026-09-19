@@ -1,7 +1,7 @@
 extends SceneTree
 
 const SUITES := [
-	"res://tests/test_smoke.gd",
+	"res://tests/test_config.gd",
 ]
 
 var _checks := 0
