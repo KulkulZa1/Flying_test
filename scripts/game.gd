@@ -5,6 +5,7 @@ var terrain: Terrain
 var aircraft: Aircraft
 var camera: ChaseCamera
 var controller: PlayerController
+var hud: HUD
 
 ## Out over the sea with the nose pointed inland, clearing whatever ground is
 ## actually underneath. A fixed altitude can spawn inside a mountain: the island
@@ -32,6 +33,10 @@ func _ready() -> void:
 	camera.far = Config.WORLD_SIZE
 	camera.current = true
 	add_child(camera)
+	var hud_layer := preload("res://scenes/hud.tscn").instantiate()
+	add_child(hud_layer)
+	hud = hud_layer.get_node("HUD")
+	hud.target = aircraft
 	_restart()
 
 func _build_environment() -> void:
