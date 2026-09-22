@@ -48,7 +48,8 @@ const START_CLEARANCE := 250.0      # m of air guaranteed under a spawn
 
 # --- Input ---
 const FORCE_TOUCH_UI := false       # set true to exercise the touch layout on desktop
-const TOUCH_STICK_RADIUS := 220.0   # px of drag for full deflection
+const TOUCH_STICK_FRACTION := 0.20  # of viewport height; full deflection
+const TOUCH_STICK_MIN_RADIUS := 80.0 # px floor for very short viewports
 const AIM_DEADZONE := 0.06          # fraction of half-height; below this, no command
 
 # --- Combat ---

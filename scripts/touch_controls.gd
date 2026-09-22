@@ -13,9 +13,16 @@ var _fire_touch := -1
 var _stick_origin := Vector2.ZERO
 var _stick_current := Vector2.ZERO
 
-## A drag of TOUCH_STICK_RADIUS is full deflection; beyond that it saturates.
-static func stick_aim(origin: Vector2, current: Vector2) -> Vector2:
-	return ((current - origin) / Config.TOUCH_STICK_RADIUS).limit_length(1.0)
+## A drag of one stick radius is full deflection; beyond that it saturates.
+static func stick_aim(origin: Vector2, current: Vector2, radius: float) -> Vector2:
+	return ((current - origin) / maxf(radius, 1.0)).limit_length(1.0)
+
+## A fraction of viewport height, like every other control here, rather than a
+## fixed pixel count. Fixed pixels made the stick the one control whose size
+## changed with resolution: 220 px is a fifth of a 1080-high phone but nearly
+## half a 540-high window, so it read completely differently on each.
+func stick_radius() -> float:
+	return maxf(Config.TOUCH_STICK_MIN_RADIUS, size.y * Config.TOUCH_STICK_FRACTION)
 
 ## Gated on the platform, not on touch availability. is_touchscreen_available()
 ## returns true whenever mouse-to-touch emulation is enabled - which it is, so
@@ -107,7 +114,7 @@ func _release(index: int) -> void:
 func _drag(index: int, at: Vector2) -> void:
 	if index == _stick_touch:
 		_stick_current = at
-		aim = stick_aim(_stick_origin, _stick_current)
+		aim = stick_aim(_stick_origin, _stick_current, stick_radius())
 	elif index == _throttle_touch:
 		# A drag retargets the throttle, so it behaves as the slider the spec
 		# describes rather than as two latching buttons.
@@ -134,8 +141,8 @@ func _notification(what: int) -> void:
 
 func _draw() -> void:
 	if _stick_touch != -1:
-		draw_arc(_stick_origin, Config.TOUCH_STICK_RADIUS, 0.0, TAU, 40, UI_COLOR, 2.0)
-		draw_circle(_stick_current, Config.TOUCH_STICK_RADIUS * 0.22, UI_COLOR)
+		draw_arc(_stick_origin, stick_radius(), 0.0, TAU, 40, UI_COLOR, 2.0)
+		draw_circle(_stick_current, stick_radius() * 0.22, UI_COLOR)
 	var rect := throttle_rect()
 	draw_rect(rect, UI_COLOR, false, 2.0)
 	draw_line(Vector2(rect.position.x, rect.get_center().y),

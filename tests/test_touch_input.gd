@@ -70,7 +70,7 @@ func test_a_press_outside_the_drawn_controls_does_nothing() -> void:
 func test_all_three_controls_work_at_once() -> void:
 	var controls := _controls()
 	controls._input(_touch(0, Vector2(300.0, 500.0), true))
-	controls._input(_drag(0, Vector2(300.0 + Config.TOUCH_STICK_RADIUS, 500.0)))
+	controls._input(_drag(0, Vector2(300.0 + controls.stick_radius(), 500.0)))
 	controls._input(_touch(1, controls.throttle_rect().get_center() + Vector2(0.0, -40.0), true))
 	controls._input(_touch(2, controls.fire_centre(), true))
 	check(controls.aim.x > 0.9 and controls.throttle_delta > 0.0 and controls.fire,
@@ -93,11 +93,6 @@ func test_the_fire_zone_matches_the_drawn_button() -> void:
 	check(not controls.fire, "a press outside the drawn circle does not fire")
 	controls.free()
 
-## Every other test in this file assigns size by hand, which is precisely how a
-## zero-size overlay shipped: created in code rather than loaded from a scene, it
-## kept its default zero rect, so every hit zone collapsed to a point, nothing
-## was drawn, and `at.x < size.x * 0.5` could never be true. Adding it to a real
-## tree is the only way to catch that.
 ## The bug this guards against — an overlay built in code keeping a zero rect,
 ## which collapses every hit zone to a point and makes the game uncontrollable —
 ## is NOT reachable from this harness. Inside SceneTree._initialize() a node
