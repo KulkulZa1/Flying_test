@@ -3,6 +3,12 @@ extends Node
 
 var touch: TouchControls = null
 
+## False until the game has centred the pointer, which cannot happen before the
+## window exists. One physics tick of a stray cursor position is enough to impart
+## a pitch the aircraft then holds forever, because nothing self-levels: measured
+## as a steady 1 m/s climb from launch with the cursor never touched.
+var armed := false
+
 ## Yaw about WORLD up, pitch about the aircraft's OWN right axis.
 ##
 ## Yaw must be world-referenced: rotating about basis.y couples aim to bank, so
@@ -29,6 +35,9 @@ static func apply_deadzone(raw: Vector2) -> Vector2:
 
 func command(aircraft: Aircraft, _dt: float) -> InputCommand:
 	var cmd := InputCommand.new()
+	if not armed and touch == null:
+		cmd.aim_dir = aircraft.model.forward()
+		return cmd
 	if touch != null:
 		cmd.aim_dir = aim_from_offset(aircraft.model.basis, touch.aim)
 		cmd.throttle_delta = touch.throttle_delta

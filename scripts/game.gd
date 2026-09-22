@@ -86,15 +86,21 @@ func _build_environment() -> void:
 func _restart() -> void:
 	aircraft.reset(spawn_point(terrain))
 	camera.snap_to_target()
-	_centre_pointer()
+	# Deferred because _restart() runs from _ready(), before the window exists:
+	# a warp issued there goes nowhere, which is how the game came to launch with
+	# the cursor wherever it happened to be.
+	_centre_pointer.call_deferred()
 
-## The pointer IS the control input, so a respawn must re-centre it. Without this
-## the aircraft starts in whatever bank the cursor's resting position commands.
+## The pointer IS the control input, so it must start centred and must never be
+## able to leave the window. Measured without this: launching with the cursor
+## 372 px above the window read as a held full-deflection command, and the
+## aircraft spiralled from 646 m to 921 m in ten seconds untouched.
 func _centre_pointer() -> void:
-	if DisplayServer.get_name() == "headless":
+	if DisplayServer.get_name() == "headless" or OS.has_feature("mobile"):
 		return
-	var size := get_viewport().get_visible_rect().size
-	Input.warp_mouse(size * 0.5)
+	Input.mouse_mode = Input.MOUSE_MODE_CONFINED
+	Input.warp_mouse(get_viewport().get_visible_rect().size * 0.5)
+	controller.armed = true
 
 ## Every aircraft ticks its own controller and weapon, so `fired` is read here
 ## rather than recomputed. Calling command() again would run each AI state
