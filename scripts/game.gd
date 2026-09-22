@@ -70,6 +70,12 @@ func _build_environment() -> void:
 	var sky_material := ProceduralSkyMaterial.new()
 	sky_material.sky_top_color = Color(0.25, 0.45, 0.78)
 	sky_material.sky_horizon_color = Color(0.72, 0.82, 0.90)
+	# ProceduralSkyMaterial draws a ground hemisphere below its horizon, and its
+	# default is a dark grey. Everywhere the island did not occlude it, that
+	# rendered as a dark bar along the entire horizon — the sea and the fog were
+	# both blamed for it first. Matched to the horizon so it reads as haze.
+	sky_material.ground_horizon_color = Color(0.72, 0.82, 0.90)
+	sky_material.ground_bottom_color = Color(0.58, 0.70, 0.82)
 	var sky := Sky.new()
 	sky.sky_material = sky_material
 	var environment := Environment.new()
@@ -79,6 +85,10 @@ func _build_environment() -> void:
 	environment.fog_enabled = true
 	environment.fog_density = 0.0001
 	environment.fog_sky_affect = 0.0
+	# Matched to the sky's horizon colour. Left at its neutral grey default,
+	# distant geometry faded to grey against a pale blue sky and the far sea
+	# read as a dark bar drawn along the whole horizon.
+	environment.fog_light_color = Color(0.72, 0.82, 0.90)
 	var world_environment := WorldEnvironment.new()
 	world_environment.environment = environment
 	add_child(world_environment)

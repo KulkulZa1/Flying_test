@@ -77,9 +77,12 @@ func build_sea() -> MeshInstance3D:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(Config.WORLD_SIZE * 1.5, Config.WORLD_SIZE * 1.5)
 	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(0.09, 0.22, 0.38)
-	material.metallic = 0.3
-	material.roughness = 0.25
+	# Diffuse, not metallic. A metallic surface is lit almost entirely by what it
+	# reflects, and there is no reflection probe or screen-space reflection here,
+	# so metallic sea rendered as a near-black band along the whole horizon.
+	material.albedo_color = Color(0.17, 0.36, 0.54)
+	material.metallic = 0.0
+	material.roughness = 0.6
 	plane.material = material
 	var instance := MeshInstance3D.new()
 	instance.mesh = plane
