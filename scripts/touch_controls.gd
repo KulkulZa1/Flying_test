@@ -26,8 +26,25 @@ static func is_active() -> bool:
 	return Config.FORCE_TOUCH_UI or OS.has_feature("mobile")
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fit_to_viewport()
+	get_viewport().size_changed.connect(fit_to_viewport)
+
+## Sized explicitly rather than by anchors. A Control created in code and
+## parented to a CanvasLayer keeps a zero rect until a resize notification
+## arrives, and neither set_anchors_preset nor set_anchors_and_offsets_preset
+## changes that — measured. With a zero rect every hit zone collapses to a point,
+## nothing is drawn, and `at.x < size.x * 0.5` can never be true, so the game is
+## entirely uncontrollable. The HUD escaped this only because hud.tscn declares
+## its anchors in the scene file rather than building them in code.
+func fit_to_viewport() -> void:
+	if not is_inside_tree():
+		return
+	fit_to(get_viewport_rect().size)
+
+func fit_to(extent: Vector2) -> void:
+	position = Vector2.ZERO
+	size = extent
 
 func _process(_delta: float) -> void:
 	queue_redraw()
@@ -35,15 +52,20 @@ func _process(_delta: float) -> void:
 ## The drawn shapes and the live hit zones are the same geometry, deliberately.
 ## They used to differ: the whole right half moved the throttle while the drawn
 ## boxes did nothing, so the controls were invisible and the visible ones inert.
+## Inset from the right edge by more than Android's back-gesture strip (about
+## 55 px at 2400 wide). At the previous inset the button's edge sat 16 px from
+## the screen edge, so a thumb drifting right while firing would have triggered
+## the system back gesture and quit the game.
 func fire_centre() -> Vector2:
-	return Vector2(size.x - size.y * 0.16, size.y * 0.74)
+	return Vector2(size.x - size.y * 0.22, size.y * 0.72)
 
 func fire_radius() -> float:
 	return size.y * 0.13
 
+## Moved down and left so it clears both the score readout in the top-right
+## corner and the fire button — it previously overlapped the score.
 func throttle_rect() -> Rect2:
-	var width := size.y * 0.16
-	return Rect2(size.x - size.y * 0.42, size.y * 0.10, width, size.y * 0.52)
+	return Rect2(size.x - size.y * 0.52, size.y * 0.28, size.y * 0.14, size.y * 0.46)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:

@@ -92,3 +92,25 @@ func test_the_fire_zone_matches_the_drawn_button() -> void:
 	controls._input(_touch(0, just_outside, true))
 	check(not controls.fire, "a press outside the drawn circle does not fire")
 	controls.free()
+
+## Every other test in this file assigns size by hand, which is precisely how a
+## zero-size overlay shipped: created in code rather than loaded from a scene, it
+## kept its default zero rect, so every hit zone collapsed to a point, nothing
+## was drawn, and `at.x < size.x * 0.5` could never be true. Adding it to a real
+## tree is the only way to catch that.
+## The bug this guards against — an overlay built in code keeping a zero rect,
+## which collapses every hit zone to a point and makes the game uncontrollable —
+## is NOT reachable from this harness. Inside SceneTree._initialize() a node
+## added to root is not yet in the tree, so _ready() never runs and
+## get_viewport_rect() errors. It was found by rendering a frame and seeing the
+## controls missing, and the wiring is verified the same way. This pins only the
+## arithmetic that the wiring feeds.
+func test_fitting_to_an_extent_fills_it() -> void:
+	var controls := TouchControls.new()
+	controls.fit_to(Vector2(2400.0, 1080.0))
+	check(controls.size.is_equal_approx(Vector2(2400.0, 1080.0)),
+		"fitting adopts the given extent rather than staying at zero")
+	check(controls.position.is_zero_approx(), "and sits at the origin")
+	check(controls.fire_radius() > 0.0 and controls.throttle_rect().size.x > 0.0,
+		"so the hit zones are non-degenerate")
+	controls.free()

@@ -516,9 +516,22 @@ It reads correctly as an attitude indicator; it will not sit on the actual horiz
 `cmd.roll`, which folds roughly 0.42 rad on top of `MAX_BANK` — about 98° of bank on touch against
 75° on desktop. Tune when the Android build is first flown.
 
-**Touch hit zones are not the drawn rectangles.** The fire zone is any press with `x > 0.8w` and
-`y > 0.6h`, which overlaps the drawn throttle-down box; the whole right half is live, and the
-drawn boxes are decorative. Releasing any non-stick touch zeroes both throttle and fire.
+**Touch was never rendered until late, and rendering it found a blocker.** Every judgement about
+the touch layout was arithmetic — thumb reach, millimetres at 439 ppi — until a frame was actually
+drawn. It showed the throttle and fire button **absent entirely**: `TouchControls` is built in
+code rather than loaded from a scene, and a `Control` parented that way keeps a zero rect.
+Neither `set_anchors_preset` nor `set_anchors_and_offsets_preset` changes that. With a zero rect
+every hit zone collapses to a point, nothing draws, and `at.x < size.x * 0.5` can never be true,
+so the game would have been **entirely uncontrollable on a phone**. It now sizes itself
+explicitly from the viewport.
+
+That bug is not reachable from the test harness: inside `SceneTree._initialize()` a node added to
+`root` is not yet in the tree, so `_ready()` never runs. The suite pins the arithmetic; the wiring
+is verified by rendering a frame. Node-lifecycle defects are a blind spot here by construction.
+
+The same frame showed the throttle overlapping the score readout and the fire button sitting 16 px
+from the right edge — inside Android's back-gesture strip, so a thumb drifting right while firing
+would have quit the game. Both are now inset: 97 px of clearance at 2400x1080.
 
 **Testing the touch layout needs an editor setting.** `FORCE_TOUCH_UI` alone is not enough:
 `input_devices/pointing/emulate_touch_from_mouse` must also be on, or no `InputEventScreenTouch`
