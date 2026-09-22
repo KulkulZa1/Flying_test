@@ -82,6 +82,11 @@ func _build_environment() -> void:
 	environment.background_mode = Environment.BG_SKY
 	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	# Held well below full. With shadows off for mobile, sky ambient at full
+	# strength lit every face of the terrain almost equally, so the island read
+	# as a pale flat wash with no sense of form. Dimming it lets the sun's
+	# direction do the shaping instead.
+	environment.ambient_light_energy = 0.45
 	environment.fog_enabled = true
 	environment.fog_density = 0.0001
 	environment.fog_sky_affect = 0.0

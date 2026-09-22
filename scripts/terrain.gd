@@ -44,6 +44,11 @@ func build_land() -> MeshInstance3D:
 			_add_tri(st, a, c, d)
 	var material := StandardMaterial3D.new()
 	material.vertex_color_use_as_albedo = true
+	# Without this the colours in _color_for_height are consumed as linear values
+	# rather than the sRGB ones they were picked as, so every one renders lighter
+	# and less saturated: a 0.24 green displays around 0.53, which is why the
+	# island read as a pale mint wash rather than grass, rock and snow.
+	material.vertex_color_is_srgb = true
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material.roughness = 1.0
 	st.set_material(material)
