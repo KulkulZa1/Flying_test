@@ -37,6 +37,18 @@ static func marker_direction(view: Basis, relative: Vector3) -> Vector2:
 		return Vector2(0.0, 1.0)  # dead astern with no lateral offset: mark below
 	return flat.normalized()
 
+## Sized as fractions of viewport height rather than fixed pixels. Fixed pixels
+## were tuned in a 648-high desktop window and render at about a millimetre on a
+## 1080-high phone, which is invisible at arm's length.
+func _font_size() -> int:
+	return int(maxf(14.0, size.y * 0.038))
+
+func _line_width() -> float:
+	return maxf(2.0, size.y * 0.0030)
+
+func _reticle_radius() -> float:
+	return maxf(10.0, size.y * 0.022)
+
 func _ready() -> void:
 	_font = ThemeDB.fallback_font
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -67,39 +79,39 @@ func _draw() -> void:
 		_draw_death_banner(centre)
 
 func _draw_reticle(centre: Vector2) -> void:
-	draw_arc(centre, 14.0, 0.0, TAU, 32, HUD_COLOR, 2.0)
-	draw_line(centre + Vector2(-26.0, 0.0), centre + Vector2(-16.0, 0.0), HUD_COLOR, 2.0)
-	draw_line(centre + Vector2(16.0, 0.0), centre + Vector2(26.0, 0.0), HUD_COLOR, 2.0)
+	draw_arc(centre, _reticle_radius(), 0.0, TAU, 32, HUD_COLOR, _line_width())
+	draw_line(centre + Vector2(-_reticle_radius() * 1.85, 0.0), centre + Vector2(-_reticle_radius() * 1.15, 0.0), HUD_COLOR, _line_width())
+	draw_line(centre + Vector2(_reticle_radius() * 1.15, 0.0), centre + Vector2(_reticle_radius() * 1.85, 0.0), HUD_COLOR, _line_width())
 
 func _draw_horizon(centre: Vector2) -> void:
 	var pitch := asin(clampf(target.model.forward().y, -1.0, 1.0))
 	var mid := centre + Vector2(0.0, horizon_offset(pitch, size.y))
 	var half := horizon_direction(target.model.bank_angle()) * (size.x * 0.22)
-	draw_line(mid - half, mid - half * 0.25, HUD_COLOR, 2.0)
-	draw_line(mid + half * 0.25, mid + half, HUD_COLOR, 2.0)
+	draw_line(mid - half, mid - half * 0.25, HUD_COLOR, _line_width())
+	draw_line(mid + half * 0.25, mid + half, HUD_COLOR, _line_width())
 
 func _draw_readouts() -> void:
 	var model := target.model
-	_text(Vector2(28.0, size.y * 0.5), "SPD %4d" % int(round(model.speed)))
-	_text(Vector2(size.x - 130.0, size.y * 0.5), "ALT %5d" % int(round(model.position.y)))
-	_text(Vector2(28.0, size.y - 40.0), "THR %3d%%" % int(round(model.throttle * 100.0)))
+	_text(Vector2(size.y * 0.04, size.y * 0.5), "SPD %4d" % int(round(model.speed)))
+	_text(Vector2(size.x - size.y * 0.26, size.y * 0.5), "ALT %5d" % int(round(model.position.y)))
+	_text(Vector2(size.y * 0.04, size.y - size.y * 0.055), "THR %3d%%" % int(round(model.throttle * 100.0)))
 
 func _text(at: Vector2, content: String) -> void:
-	draw_string(_font, at, content, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, HUD_COLOR)
+	draw_string(_font, at, content, HORIZONTAL_ALIGNMENT_LEFT, -1, _font_size(), HUD_COLOR)
 
 func _draw_health() -> void:
 	var fraction := clampf(target.hp / maxf(target.max_hp, 1.0), 0.0, 1.0)
-	var bar := Rect2(28.0, size.y - 76.0, 220.0, 14.0)
-	draw_rect(bar, HUD_COLOR, false, 2.0)
+	var bar := Rect2(size.y * 0.04, size.y - size.y * 0.115, size.x * 0.18, size.y * 0.022)
+	draw_rect(bar, HUD_COLOR, false, _line_width())
 	draw_rect(Rect2(bar.position, Vector2(bar.size.x * fraction, bar.size.y)), HUD_COLOR)
 
 func _draw_score() -> void:
 	if scoring == null:
 		return
-	_text(Vector2(size.x - 220.0, 44.0), "SCORE %7d" % scoring.score)
-	_text(Vector2(size.x - 220.0, 68.0), "BEST  %7d" % scoring.high_score)
+	_text(Vector2(size.x - size.y * 0.42, size.y * 0.06), "SCORE %7d" % scoring.score)
+	_text(Vector2(size.x - size.y * 0.42, size.y * 0.11), "BEST  %7d" % scoring.high_score)
 	if scoring.multiplier > 1.0:
-		_text(Vector2(size.x - 220.0, 92.0), "x%.1f" % scoring.multiplier)
+		_text(Vector2(size.x - size.y * 0.42, size.y * 0.16), "x%.1f" % scoring.multiplier)
 
 ## A chevron at the screen edge for every enemy that is not comfortably ahead, so
 ## a dogfight does not become a hunt for something behind you.
@@ -113,11 +125,11 @@ func _draw_enemy_markers(centre: Vector2) -> void:
 			continue
 		if not is_behind(view, relative) and target.model.forward().angle_to(relative.normalized()) < 0.5:
 			continue  # already on screen
-		draw_circle(centre + marker_direction(view, relative) * (size.y * 0.40), 6.0, HUD_COLOR)
+		draw_circle(centre + marker_direction(view, relative) * (size.y * 0.40), maxf(5.0, size.y * 0.010), HUD_COLOR)
 
 ## Deliberately drawn over everything else: the only other signal that a run
 ## ended is the score snapping to zero, which reads as a glitch rather than a
 ## death.
 func _draw_death_banner(centre: Vector2) -> void:
-	_text(centre + Vector2(-56.0, -24.0), "SHOT DOWN")
-	_text(centre + Vector2(-56.0, 4.0), "SCORE %d" % banner_score)
+	_text(centre + Vector2(-size.y * 0.13, -size.y * 0.04), "SHOT DOWN")
+	_text(centre + Vector2(-size.y * 0.13, size.y * 0.01), "SCORE %d" % banner_score)

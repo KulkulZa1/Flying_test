@@ -113,7 +113,7 @@ func _notification(what: int) -> void:
 func _draw() -> void:
 	if _stick_touch != -1:
 		draw_arc(_stick_origin, Config.TOUCH_STICK_RADIUS, 0.0, TAU, 40, UI_COLOR, 2.0)
-		draw_circle(_stick_current, 26.0, UI_COLOR)
+		draw_circle(_stick_current, Config.TOUCH_STICK_RADIUS * 0.22, UI_COLOR)
 	var rect := throttle_rect()
 	draw_rect(rect, UI_COLOR, false, 2.0)
 	draw_line(Vector2(rect.position.x, rect.get_center().y),

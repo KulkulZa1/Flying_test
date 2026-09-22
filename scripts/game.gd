@@ -61,7 +61,11 @@ func _build_environment() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-48.0, -35.0, 0.0)
 	sun.light_energy = 1.1
-	sun.shadow_enabled = true
+	# Off deliberately. The terrain is one 8 km mesh whose bounds intersect every
+	# shadow split, so enabling shadows resubmits all 93,750 of its vertices once
+	# per split - about 375,000 vertices a frame - to cast shadows a player at
+	# 600 m altitude cannot see.
+	sun.shadow_enabled = false
 	add_child(sun)
 	var sky_material := ProceduralSkyMaterial.new()
 	sky_material.sky_top_color = Color(0.25, 0.45, 0.78)
@@ -194,4 +198,8 @@ func _notification(what: int) -> void:
 	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
 		get_tree().paused = false
 	elif what == NOTIFICATION_WM_CLOSE_REQUEST:
+		scoring.save_high_score()
+	elif what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		# Android's back gesture quits without a close request, so this is the
+		# only hook that runs before the app dies on a phone.
 		scoring.save_high_score()

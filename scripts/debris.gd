@@ -37,18 +37,29 @@ static func scatter(parent: Node3D, at: Vector3, inherited: Vector3) -> void:
 		chunk.add_child(timer)
 		timer.start()
 
+## One shared mesh and material for every spark. A fresh default SphereMesh is
+## 4,224 triangles - more than a tenth of the whole island - built and destroyed
+## up to sixty times a second during sustained fire.
+static var _spark_mesh: SphereMesh = null
+
+static func _shared_spark_mesh() -> SphereMesh:
+	if _spark_mesh == null:
+		_spark_mesh = SphereMesh.new()
+		_spark_mesh.radius = 1.4
+		_spark_mesh.height = 2.8
+		_spark_mesh.radial_segments = 8
+		_spark_mesh.rings = 4
+		var material := StandardMaterial3D.new()
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.albedo_color = Color(1.0, 0.92, 0.55)
+		_spark_mesh.material = material
+	return _spark_mesh
+
 ## A brief flash where a round lands. Without it there is no feedback at all
 ## between pulling the trigger and an enemy eventually exploding.
 static func spark(parent: Node3D, at: Vector3) -> void:
-	var mesh := SphereMesh.new()
-	mesh.radius = 1.4
-	mesh.height = 2.8
-	var material := StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.albedo_color = Color(1.0, 0.92, 0.55)
-	mesh.material = material
 	var flash := MeshInstance3D.new()
-	flash.mesh = mesh
+	flash.mesh = _shared_spark_mesh()
 	flash.position = at
 	parent.add_child(flash)
 	var timer := Timer.new()
