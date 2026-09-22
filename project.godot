@@ -3,6 +3,13 @@ config_version=5
 [application]
 config/name="Flying"
 run/main_scene="res://scenes/main.tscn"
+config/icon="res://icon.png"
+
+[display]
+
+; 4 = sensor landscape, so the phone can be held either way up. Fixed landscape
+; forces which side the notch and the charging cable end up on.
+window/handheld/orientation=4
 
 [input_devices]
 
@@ -13,6 +20,9 @@ common/physics_ticks_per_second=60
 
 [rendering]
 
+; Android export refuses to run without this: mobile GPUs need ETC2/ASTC rather
+; than the desktop S3TC/BPTC formats.
+textures/vram_compression/import_etc2_astc=true
 scaling_3d/mode=0
 scaling_3d/scale=1.0
 scaling_3d/scale.mobile=0.75

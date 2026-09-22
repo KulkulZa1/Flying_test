@@ -3,7 +3,9 @@
 
 # Export output and signing credentials
 /build/
-export_presets.cfg
+# export_presets.cfg is tracked: a debug preset carries no secrets, because debug
+# signing uses the editor keystore, not the preset. Never put release keystore
+# credentials in it.
 *.apk
 *.aab
 *.exe
