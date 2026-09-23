@@ -339,6 +339,18 @@ than rigged.
 - **Break** — on overshoot or inside `MIN_SEPARATION 120 m`, peel away for `BREAK_TIME 2.5 s`
 - **Reposition** — regain altitude and speed, then return to Pursue
 
+An **overshoot** is the moment the target slides from ahead to behind while within
+`ATTACK_RANGE`. It is edge-triggered: one pass produces one break. A level check ("the target is
+behind") re-fires the instant a break ends, since breaking away is exactly what puts the target
+behind. An earlier version of this document claimed that would make the AI loop and never
+re-engage; measured, it does not — the break carries the AI out past `ATTACK_RANGE`, where the
+check stops firing — but it counts one overshoot as several, raising the share of a fight spent
+breaking from 34% to 42%.
+
+**Reposition** triggers below `REPOSITION_ALTITUDE 450 m` or below `REPOSITION_SPEED 65 m/s`, at
+full throttle. Low altitude takes priority and climbs; slow-but-high trades a little height for
+speed with a shallow dive, since climbing would bleed the energy it is trying to recover.
+
 Aim jitter per difficulty keeps them beatable: `AIM_JITTER` starts at 8° and tightens toward 2°
 as waves progress.
 

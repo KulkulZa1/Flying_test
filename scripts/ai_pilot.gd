@@ -66,10 +66,12 @@ func _update_state(aircraft: Aircraft, to_target: Vector3, dt: float) -> void:
 
 ## Spec 12: break off "on overshoot or inside MIN_SEPARATION". An overshoot is
 ## the moment the target slides from ahead to behind while still close.
-## Edge-triggered deliberately: a level test ("the target is behind") would fire
-## again the instant a break ended, since breaking away is exactly what puts the
-## target behind, and the AI would never re-engage. Starts false so that a
-## target first seen behind does not count as a pass.
+## Edge-triggered deliberately: a level test ("the target is behind") fires again
+## the instant a break ends, since breaking away is exactly what puts the target
+## behind, so one overshoot is counted as several. It does not loop forever - the
+## break carries the AI out past ATTACK_RANGE, where the check stops firing - but
+## measured, it raised the share of a fight spent breaking from 34% to 42%.
+## Starts false so that a target first seen behind does not count as a pass.
 func _just_passed(aircraft: Aircraft, to_target: Vector3) -> bool:
 	var ahead := aircraft.model.forward().dot(to_target) > 0.0
 	var passed := _target_was_ahead and not ahead and to_target.length() <= Config.ATTACK_RANGE

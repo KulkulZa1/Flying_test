@@ -211,6 +211,29 @@ func test_a_target_first_seen_behind_is_not_a_pass() -> void:
 	hunter.free()
 	prey.free()
 
+## The property the edge-trigger actually buys. A level check does not loop
+## forever - measured, the break carries the AI past ATTACK_RANGE and it
+## re-engages anyway - but it counts one overshoot as several. Holding the target
+## behind and close while the break runs out isolates exactly that: the same pass
+## must not be counted twice. Kept outside MIN_SEPARATION throughout, so distance
+## cannot be what causes a second break.
+func test_one_pass_produces_one_break() -> void:
+	var pilot := AIPilot.new()
+	pilot.jitter_degrees = 0.0
+	var hunter := _craft_at(Vector3(0.0, 600.0, 0.0))
+	var prey := _craft_at(Vector3(40.0, 600.0, -200.0))
+	pilot.target = prey
+	pilot.command(hunter, 1.0 / 60.0)                  # target ahead
+	prey.model.position = Vector3(40.0, 600.0, 200.0)  # passed: behind, still close
+	pilot.command(hunter, 1.0 / 60.0)
+	check(pilot.state == AIPilot.State.BREAK, "precondition: the pass triggers a break")
+	for i in int(Config.BREAK_TIME * 60.0) + 5:
+		pilot.command(hunter, 1.0 / 60.0)
+	check(pilot.state != AIPilot.State.BREAK,
+		"one pass produces one break: the same overshoot is not counted again")
+	hunter.free()
+	prey.free()
+
 func test_the_ai_re_engages_after_breaking() -> void:
 	var pilot := AIPilot.new()
 	pilot.jitter_degrees = 0.0
