@@ -11,6 +11,9 @@ func test_ai_pursues_a_distant_target() -> void:
 	var hunter := _craft_at(Vector3(0.0, 600.0, 0.0))
 	var prey := _craft_at(Vector3(0.0, 600.0, -1500.0))
 	pilot.target = prey
+	# Start from ATTACK: a pilot constructed in PURSUE would pass this test with
+	# its whole state machine deleted.
+	pilot.state = AIPilot.State.ATTACK
 	pilot.command(hunter, 1.0 / 60.0)
 	check(pilot.state == AIPilot.State.PURSUE, "a distant target is pursued")
 	hunter.free()
@@ -49,6 +52,8 @@ func test_ai_breaks_off_when_too_close() -> void:
 	var cmd := pilot.command(hunter, 1.0 / 60.0)
 	check(pilot.state == AIPilot.State.BREAK, "a target inside MIN_SEPARATION triggers a break")
 	check(not cmd.fire, "and the AI stops shooting while breaking off")
+	check(cmd.aim_dir.dot(prey.model.position - hunter.model.position) < 0.0,
+		"and turns away from the target rather than holding its heading")
 	hunter.free()
 	prey.free()
 
@@ -173,5 +178,109 @@ func test_pilots_do_not_jitter_in_lockstep() -> void:
 		widest = maxf(widest, rad_to_deg(aim_a.angle_to(aim_b)))
 	check(widest > 1.0,
 		"two pilots must not share an aim error, or a whole wave shoots as one gun")
+	hunter.free()
+	prey.free()
+
+func test_ai_breaks_after_overshooting() -> void:
+	var pilot := AIPilot.new()
+	pilot.jitter_degrees = 0.0
+	var hunter := _craft_at(Vector3(0.0, 600.0, 0.0))
+	# Off-axis on purpose, and far enough out that MIN_SEPARATION cannot be what
+	# triggers the break - only the pass can.
+	var prey := _craft_at(Vector3(40.0, 600.0, -200.0))
+	pilot.target = prey
+	pilot.command(hunter, 1.0 / 60.0)
+	check(pilot.state != AIPilot.State.BREAK, "precondition: a target ahead is not broken from")
+	prey.model.position = Vector3(40.0, 600.0, 200.0)  # the hunter has flown past it
+	check(prey.model.position.distance_to(hunter.model.position) > Config.MIN_SEPARATION,
+		"precondition: outside MIN_SEPARATION, so only the pass can cause a break")
+	pilot.command(hunter, 1.0 / 60.0)
+	check(pilot.state == AIPilot.State.BREAK, "sliding past the target triggers a break")
+	hunter.free()
+	prey.free()
+
+func test_a_target_first_seen_behind_is_not_a_pass() -> void:
+	var pilot := AIPilot.new()
+	pilot.jitter_degrees = 0.0
+	var hunter := _craft_at(Vector3(0.0, 600.0, 0.0))
+	var prey := _craft_at(Vector3(40.0, 600.0, 300.0))  # behind from the start, in range
+	pilot.target = prey
+	pilot.command(hunter, 1.0 / 60.0)
+	check(pilot.state == AIPilot.State.PURSUE,
+		"a target that was never ahead has not been overshot, so the AI turns to pursue")
+	hunter.free()
+	prey.free()
+
+func test_the_ai_re_engages_after_breaking() -> void:
+	var pilot := AIPilot.new()
+	pilot.jitter_degrees = 0.0
+	var hunter := _craft_at(Vector3(0.0, 800.0, 400.0))
+	var prey := _craft_at(Vector3(35.0, 800.0, -400.0))
+	pilot.target = prey
+	hunter.controller = pilot
+	var broke := false
+	var attacked_after_breaking := false
+	for i in 3600:  # one minute
+		hunter.tick(1.0 / 60.0)
+		if pilot.state == AIPilot.State.BREAK:
+			broke = true
+		elif broke and pilot.state == AIPilot.State.ATTACK:
+			attacked_after_breaking = true
+	check(broke, "precondition: the fight produces at least one break")
+	check(attacked_after_breaking,
+		"after breaking off the AI comes back to attack, rather than breaking forever")
+	hunter.free()
+	prey.free()
+
+func test_a_slow_ai_repositions() -> void:
+	var pilot := AIPilot.new()
+	pilot.jitter_degrees = 0.0
+	var hunter := _craft_at(Vector3(0.0, 900.0, 0.0))  # well above the altitude floor
+	hunter.model.speed = Config.REPOSITION_SPEED * 0.5
+	var prey := _craft_at(Vector3(40.0, 900.0, -1500.0))
+	pilot.target = prey
+	pilot.command(hunter, 1.0 / 60.0)
+	check(pilot.state == AIPilot.State.REPOSITION, "an AI that has bled its speed repositions")
+	hunter.free()
+	prey.free()
+
+func test_recovery_uses_full_throttle() -> void:
+	var pilot := AIPilot.new()
+	pilot.jitter_degrees = 0.0
+	var hunter := _craft_at(Vector3(0.0, 900.0, 0.0))
+	hunter.model.speed = Config.REPOSITION_SPEED * 0.5
+	# Above AI_THROTTLE, so ordinary cruise would command the throttle DOWN:
+	# only recovery can explain a command to push it up.
+	hunter.model.throttle = 0.95
+	var prey := _craft_at(Vector3(40.0, 900.0, -1500.0))
+	pilot.target = prey
+	var cmd := pilot.command(hunter, 1.0 / 60.0)
+	check(cmd.throttle_delta > 0.0, "recovering from low speed pushes the throttle to full")
+	hunter.free()
+	prey.free()
+
+func test_a_slow_but_high_ai_dives_rather_than_climbs() -> void:
+	var pilot := AIPilot.new()
+	pilot.jitter_degrees = 0.0
+	var hunter := _craft_at(Vector3(0.0, 900.0, 0.0))
+	hunter.model.speed = Config.REPOSITION_SPEED * 0.5
+	# Above the hunter, so pursuit - or a climb - would aim up. Only the
+	# energy-recovery dive aims down.
+	var prey := _craft_at(Vector3(40.0, 1600.0, -1000.0))
+	pilot.target = prey
+	var cmd := pilot.command(hunter, 1.0 / 60.0)
+	check(cmd.aim_dir.y < 0.0, "a slow aircraft trades a little height for speed instead of climbing")
+	hunter.free()
+	prey.free()
+
+func test_low_takes_priority_over_slow() -> void:
+	var pilot := AIPilot.new()
+	pilot.jitter_degrees = 0.0
+	var hunter := _craft_at(Vector3(0.0, 50.0, 0.0))  # below the floor AND slow
+	hunter.model.speed = Config.REPOSITION_SPEED * 0.5
+	var prey := _craft_at(Vector3(0.0, 20.0, -2000.0))  # below, so pursuit would aim down
+	pilot.target = prey
+	var cmd := pilot.command(hunter, 1.0 / 60.0)
+	check(cmd.aim_dir.y > 0.0, "near the ground, climbing comes before regaining speed")
 	hunter.free()
 	prey.free()

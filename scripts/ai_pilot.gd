@@ -10,6 +10,7 @@ var jitter_degrees := Config.AIM_JITTER_START_DEG
 
 var _jitter_phase := randf() * TAU
 var _jitter_rate := randf_range(0.7, 1.3)
+var _target_was_ahead := false
 
 ## Aim is a direction to a point in the world. There is deliberately no body
 ## frame here: expressing aim relative to the aircraft's own basis is exactly
@@ -19,15 +20,18 @@ var _jitter_rate := randf_range(0.7, 1.3)
 ## round actually leaves the barrel, so the AI cannot out-shoot the player.
 func command(aircraft: Aircraft, dt: float) -> InputCommand:
 	var cmd := InputCommand.new()
-	cmd.throttle_delta = 1.0 if aircraft.model.throttle < Config.AI_THROTTLE else -1.0
 	if target == null or not is_instance_valid(target) or not target.is_alive():
+		cmd.throttle_delta = _cruise_throttle(aircraft)
 		cmd.aim_dir = aircraft.model.forward()
 		return cmd
 	var to_target := target.model.position - aircraft.model.position
-	_update_state(aircraft, to_target.length(), dt)
+	_update_state(aircraft, to_target, dt)
+	# Recovery is the one state that wants every bit of thrust: that is how a
+	# slow aircraft gets its energy back.
+	cmd.throttle_delta = 1.0 if state == State.REPOSITION else _cruise_throttle(aircraft)
 	match state:
 		State.REPOSITION:
-			cmd.aim_dir = _climb_away(aircraft)
+			cmd.aim_dir = _recover(aircraft)
 		State.BREAK:
 			cmd.aim_dir = _break_away(aircraft, to_target)
 		_:
@@ -35,16 +39,23 @@ func command(aircraft: Aircraft, dt: float) -> InputCommand:
 			cmd.fire = state == State.ATTACK
 	return cmd
 
-func _update_state(aircraft: Aircraft, distance: float, dt: float) -> void:
+func _cruise_throttle(aircraft: Aircraft) -> float:
+	return 1.0 if aircraft.model.throttle < Config.AI_THROTTLE else -1.0
+
+func _update_state(aircraft: Aircraft, to_target: Vector3, dt: float) -> void:
 	state_timer = maxf(state_timer - dt, 0.0)
-	if aircraft.model.position.y < Config.REPOSITION_ALTITUDE:
+	# Refreshed every tick whatever the state, so the pass detector never acts on
+	# a stale observation when a break or a recovery ends.
+	var passed := _just_passed(aircraft, to_target)
+	if _needs_recovery(aircraft):
 		state = State.REPOSITION
 		return
 	if state == State.BREAK:
 		if state_timer > 0.0:
 			return
 		state = State.PURSUE
-	if distance < Config.MIN_SEPARATION:
+	var distance := to_target.length()
+	if distance < Config.MIN_SEPARATION or passed:
 		state = State.BREAK
 		state_timer = Config.BREAK_TIME
 		return
@@ -52,6 +63,23 @@ func _update_state(aircraft: Aircraft, distance: float, dt: float) -> void:
 		state = State.ATTACK
 	else:
 		state = State.PURSUE
+
+## Spec 12: break off "on overshoot or inside MIN_SEPARATION". An overshoot is
+## the moment the target slides from ahead to behind while still close.
+## Edge-triggered deliberately: a level test ("the target is behind") would fire
+## again the instant a break ended, since breaking away is exactly what puts the
+## target behind, and the AI would never re-engage. Starts false so that a
+## target first seen behind does not count as a pass.
+func _just_passed(aircraft: Aircraft, to_target: Vector3) -> bool:
+	var ahead := aircraft.model.forward().dot(to_target) > 0.0
+	var passed := _target_was_ahead and not ahead and to_target.length() <= Config.ATTACK_RANGE
+	_target_was_ahead = ahead
+	return passed
+
+## Spec 12: reposition regains altitude AND speed.
+func _needs_recovery(aircraft: Aircraft) -> bool:
+	return (aircraft.model.position.y < Config.REPOSITION_ALTITUDE
+		or aircraft.model.speed < Config.REPOSITION_SPEED)
 
 func _is_lined_up(aircraft: Aircraft) -> bool:
 	var to_target := target.model.position - aircraft.model.position
@@ -87,9 +115,16 @@ func _break_away(aircraft: Aircraft, to_target: Vector3) -> Vector3:
 		return aircraft.model.forward()
 	return away.normalized()
 
-func _climb_away(aircraft: Aircraft) -> Vector3:
+## Low takes priority over slow: the ground is the nearer threat, and at full
+## throttle the engine recovers speed quickly even in a climb. Slow but high
+## trades a little height for speed with a shallow dive instead of climbing,
+## which would bleed the very energy it is trying to recover.
+func _recover(aircraft: Aircraft) -> Vector3:
 	var forward := aircraft.model.forward()
-	var climb := Vector3(forward.x, 0.0, forward.z)
-	if climb.length_squared() < 1e-6:
-		climb = Vector3.FORWARD
-	return (climb.normalized() + Vector3.UP * 0.8).normalized()
+	var level := Vector3(forward.x, 0.0, forward.z)
+	if level.length_squared() < 1e-6:
+		level = Vector3.FORWARD
+	level = level.normalized()
+	if aircraft.model.position.y < Config.REPOSITION_ALTITUDE:
+		return (level + Vector3.UP * 0.8).normalized()
+	return (level + Vector3.DOWN * 0.15).normalized()

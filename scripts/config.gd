@@ -68,6 +68,7 @@ const ATTACK_RANGE := 600.0         # m
 const MIN_SEPARATION := 120.0       # m, below which the AI breaks off
 const BREAK_TIME := 2.5             # s
 const REPOSITION_ALTITUDE := 450.0  # m, floor the AI climbs back to
+const REPOSITION_SPEED := 65.0      # m/s, below which the AI extends to regain energy
 const AI_THROTTLE := 0.85
 const AIM_JITTER_START_DEG := 8.0
 const AIM_JITTER_END_DEG := 2.0
